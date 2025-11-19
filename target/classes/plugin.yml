@@ -1,0 +1,20 @@
+name: FunTalismans
+version: '1.0.0'
+main: ft.keraune.funtalismans.FunTalismans
+api-version: '1.21'
+author: Keraune
+depend: [NBTAPI]
+
+commands:
+  talisman:
+    description: Talisman command
+    usage: /talisman
+    aliases: [tali, talismans, ftalismans, ft]
+
+permissions:
+  funtalismans.reload:
+    description: Permission to reload the plugin
+    default: op
+  funtalismans.give:
+    description: Permission to give talismans
+    default: op

@@ -100,8 +100,6 @@ public class AttributeParser {
         // ------------------------
         for (EquipmentSlot slot : slots) {
 
-            // Tu TalismanAttribute necesita datos crudos.
-            // La creación del AttributeModifier real debe estar en la "build" del item.
             list.add(new TalismanAttribute(
                     attribute,
                     amount,

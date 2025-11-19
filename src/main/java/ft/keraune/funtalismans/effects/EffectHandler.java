@@ -29,47 +29,47 @@ public class EffectHandler implements Listener {
     }
 
     // ===============================================================
-    // APPLY EFFECTS USING PotionEffect.INFINITE_DURATION (shows ∞)
+    // APLICAR EFECTOS USANDO PotionEffect.INFINITE_DURATION (muestra ∞)
     // ===============================================================
-    private void applyEffects(Player player, Talisman t) {
-        for (TalismanEffect eff : t.getEffects()) {
-            PotionEffectType type = eff.getType();
-            if (type == null) continue;
+    private void aplicarEfectos(Player jugador, Talisman talisman) {
+        for (TalismanEffect efecto : talisman.getEffects()) {
+            PotionEffectType tipo = efecto.getType();
+            if (tipo == null) continue;
 
             // Usar la constante INFINITE_DURATION para mostrar ∞ en el cliente
-            PotionEffect potion = new PotionEffect(
-                    type,
+            PotionEffect pocion = new PotionEffect(
+                    tipo,
                     PotionEffect.INFINITE_DURATION, // Esto mostrará el símbolo ∞
-                    eff.getAmplifier(),
-                    true,   // ambient
-                    true,   // particles
-                    true    // icon (debe ser true para mostrar el icono y ∞)
+                    efecto.getAmplifier(),
+                    true,   // ambiental
+                    true,   // partículas
+                    true    // icono (debe ser true para mostrar el icono y ∞)
             );
 
-            player.addPotionEffect(potion, true);
+            jugador.addPotionEffect(pocion, true);
         }
     }
 
     // ===============================================================
-    // REMOVE EFFECTS ONLY IF NO OTHER TALISMAN PROVIDES THEM
+    // REMOVER EFECTOS SOLO SI NINGÚN OTRO TALISMÁN LOS PROVEE
     // ===============================================================
-    private void removeEffects(Player player, Talisman t) {
-        for (TalismanEffect eff : t.getEffects()) {
-            PotionEffectType type = eff.getType();
-            if (type == null) continue;
+    private void removerEfectos(Player jugador, Talisman talisman) {
+        for (TalismanEffect efecto : talisman.getEffects()) {
+            PotionEffectType tipo = efecto.getType();
+            if (tipo == null) continue;
 
-            boolean stillProvided = false;
+            boolean todaviaProveido = false;
 
             // Verificar si algún talismán en los slots CORRECTOS provee este efecto
-            for (Talisman otherTalisman : manager.getTalismans().values()) {
-                if (otherTalisman.hasEffect(type) && isTalismanInCorrectSlots(player, otherTalisman)) {
-                    stillProvided = true;
+            for (Talisman otroTalisman : manager.getTalismans().values()) {
+                if (otroTalisman.hasEffect(tipo) && estaTalismanEnSlotsCorrectos(jugador, otroTalisman)) {
+                    todaviaProveido = true;
                     break;
                 }
             }
 
-            if (!stillProvided) {
-                player.removePotionEffect(type);
+            if (!todaviaProveido) {
+                jugador.removePotionEffect(tipo);
             }
         }
     }
@@ -77,9 +77,9 @@ public class EffectHandler implements Listener {
     // ===============================================================
     // VERIFICAR SI EL TALISMÁN ESTÁ EN SUS SLOTS CORRECTOS
     // ===============================================================
-    private boolean isTalismanInCorrectSlots(Player player, Talisman talisman) {
+    private boolean estaTalismanEnSlotsCorrectos(Player jugador, Talisman talisman) {
         for (EquipmentSlot slot : talisman.getEffectSlots()) {
-            if (manager.isItemInSlot(player, slot, talisman)) {
+            if (manager.isItemInSlot(jugador, slot, talisman)) {
                 return true;
             }
         }
@@ -87,38 +87,38 @@ public class EffectHandler implements Listener {
     }
 
     // ===============================================================
-    // UPDATE EFFECTS (called on equip/unequip/inventory change)
+    // ACTUALIZAR EFECTOS (llamado al equipar/desequipar/cambio de inventario)
     // ===============================================================
-    private void update(Player p) {
+    private void actualizar(Player jugador) {
         // Primero remover efectos de talismanes que ya no están en sus slots
-        for (Talisman t : manager.getTalismans().values()) {
-            removeEffects(p, t);
+        for (Talisman talisman : manager.getTalismans().values()) {
+            removerEfectos(jugador, talisman);
         }
 
         // Luego aplicar efectos solo para talismanes que SÍ están en sus slots correctos
-        for (Talisman t : manager.getTalismans().values()) {
-            if (isTalismanInCorrectSlots(p, t)) {
-                applyEffects(p, t);
+        for (Talisman talisman : manager.getTalismans().values()) {
+            if (estaTalismanEnSlotsCorrectos(jugador, talisman)) {
+                aplicarEfectos(jugador, talisman);
             }
         }
     }
 
     // ===============================================================
-    // EVENTS
+    // EVENTOS
     // ===============================================================
     @EventHandler
-    public void onHeldChange(PlayerItemHeldEvent e) {
-        Bukkit.getScheduler().runTask(plugin, () -> update(e.getPlayer()));
+    public void alCambiarItemMano(PlayerItemHeldEvent evento) {
+        Bukkit.getScheduler().runTask(plugin, () -> actualizar(evento.getPlayer()));
     }
 
     @EventHandler
-    public void onSwap(PlayerSwapHandItemsEvent e) {
-        Bukkit.getScheduler().runTask(plugin, () -> update(e.getPlayer()));
+    public void alIntercambiarManos(PlayerSwapHandItemsEvent evento) {
+        Bukkit.getScheduler().runTask(plugin, () -> actualizar(evento.getPlayer()));
     }
 
     @EventHandler
-    public void onInventory(InventoryClickEvent e) {
-        if (e.getWhoClicked() instanceof Player p)
-            Bukkit.getScheduler().runTask(plugin, () -> update(p));
+    public void alClicInventario(InventoryClickEvent evento) {
+        if (evento.getWhoClicked() instanceof Player jugador)
+            Bukkit.getScheduler().runTask(plugin, () -> actualizar(jugador));
     }
 }

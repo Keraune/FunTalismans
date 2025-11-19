@@ -25,7 +25,7 @@ public class Talisman {
     // ---- NUEVO ----
     private final List<EquipmentSlot> effectSlots;
     private final List<TalismanEffect> effects;
-    private final List<TalismanEnchantment> enchantments; // ← NUEVO
+    private final List<TalismanEnchantment> enchantments;
 
     public Talisman(
             String id,
@@ -42,7 +42,7 @@ public class Talisman {
             List<String> flags,
             List<EquipmentSlot> effectSlots,
             List<TalismanEffect> effects,
-            List<TalismanEnchantment> enchantments // ← NUEVO
+            List<TalismanEnchantment> enchantments
     ) {
         this.id = id;
         this.name = name;

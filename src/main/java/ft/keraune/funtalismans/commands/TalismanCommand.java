@@ -38,7 +38,7 @@ public class TalismanCommand implements CommandExecutor {
 
             long ms = System.currentTimeMillis();
 
-            // LOGS HARCODEADOS - Con prefijo hardcodeado en celeste
+            // LOGS HARCODEADOS
             logHeader("§9Reloaded configuration!");
             logLine("§2Reloaded §fconfig.conf!");
             logLine("§2Reloaded §ftalismans.conf!");
@@ -56,7 +56,6 @@ public class TalismanCommand implements CommandExecutor {
             logLine("§2Updated §f" + updatedPlayers + " §2player(s)!");
             logFooter("§2Successful reload!");
 
-            // Mensaje para jugador (este SÍ viene del config)
             send(sender, plugin.getMessageManager().getMessage("reload_success",
                     Map.of("ms", String.valueOf(System.currentTimeMillis() - ms))));
             return true;
@@ -118,7 +117,7 @@ public class TalismanCommand implements CommandExecutor {
     }
 
     // ----------------------
-    // Util: logs para consola (HARCODEADOS con prefijo celeste)
+    // Util: logs para consola
     // ----------------------
     private void logHeader(String title) {
         // PREFIJO HARCODEADO EN CELESTE para consola

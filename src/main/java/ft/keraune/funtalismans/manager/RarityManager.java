@@ -38,10 +38,8 @@ public class RarityManager {
                 );
 
                 rarities.put(rarityId.toLowerCase(), rarity);
-                // SILENCIADO: No mostrar logs individuales
 
             } catch (Exception e) {
-                // SILENCIADO: Solo errores críticos
             }
         }
     }
@@ -52,7 +50,6 @@ public class RarityManager {
         rarities.put("rare", new TalismanRarity("rare", "&9Raro", "&9"));
         rarities.put("epic", new TalismanRarity("epic", "&5Épico", "&5"));
         rarities.put("legendary", new TalismanRarity("legendary", "&6Legendario", "&6"));
-        // SILENCIADO: No mostrar warning
     }
 
     public TalismanRarity getRarity(String id) {
@@ -65,7 +62,6 @@ public class RarityManager {
     }
 
     public void reload() {
-        // SILENCIADO: No mostrar logs
         loadRarities();
     }
 }

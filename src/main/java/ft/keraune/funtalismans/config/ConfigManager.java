@@ -24,12 +24,9 @@ public class ConfigManager {
 
         // Inicializar la key usada por PDC para identificar talismans en ItemMeta
         talismansKey = new NamespacedKey(plugin, "talisman_id");
-
-        // SILENCIADO: No mostrar log
     }
 
     public void reload() {
-        // SILENCIADO: No mostrar logs
         load();
     }
 

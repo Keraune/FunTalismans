@@ -24,7 +24,7 @@ public class TalismanTabCompleter implements TabCompleter {
 
         // /talisman give <player>
         if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
-            return null; // Bukkit autocompleta jugadores
+            return null;
         }
 
         // /talisman give <player> <id>

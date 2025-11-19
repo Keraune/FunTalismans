@@ -17,7 +17,7 @@ public class PlayerQuitListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        // Limpiar efectos cuando el jugador se desconecta
-        plugin.getTalismanManager().clearEffects(player);
+        // Usar el EffectHandler para limpiar efectos correctamente
+        plugin.getEffectHandler().cleanupPlayerEffects(player);
     }
 }

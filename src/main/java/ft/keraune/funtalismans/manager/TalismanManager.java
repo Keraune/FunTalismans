@@ -67,9 +67,10 @@ public class TalismanManager {
         PlayerInventory inventory = player.getInventory();
         boolean updated = false;
 
+        // Actualizar inventario principal con verificaciones mejoradas
         for (int i = 0; i < inventory.getSize(); i++) {
             ItemStack item = inventory.getItem(i);
-            if (item != null) {
+            if (item != null && !item.getType().isAir()) {
                 Talisman oldTalisman = getFromItem(item);
                 if (oldTalisman != null) {
                     Talisman newTalisman = getTalisman(oldTalisman.getId());
@@ -82,24 +83,30 @@ public class TalismanManager {
             }
         }
 
+        // Actualizar armadura con verificaciones mejoradas
         ItemStack[] armor = inventory.getArmorContents();
+        boolean armorUpdated = false;
         for (int i = 0; i < armor.length; i++) {
             ItemStack item = armor[i];
-            if (item != null) {
+            if (item != null && !item.getType().isAir()) {
                 Talisman oldTalisman = getFromItem(item);
                 if (oldTalisman != null) {
                     Talisman newTalisman = getTalisman(oldTalisman.getId());
                     if (newTalisman != null) {
                         armor[i] = TalismanItemBuilder.build(newTalisman);
-                        updated = true;
+                        armorUpdated = true;
                     }
                 }
             }
         }
-        inventory.setArmorContents(armor);
+        if (armorUpdated) {
+            inventory.setArmorContents(armor);
+            updated = true;
+        }
 
+        // Actualizar mano principal con verificaciones mejoradas
         ItemStack mainHand = inventory.getItemInMainHand();
-        if (mainHand != null) {
+        if (mainHand != null && !mainHand.getType().isAir()) {
             Talisman oldTalisman = getFromItem(mainHand);
             if (oldTalisman != null) {
                 Talisman newTalisman = getTalisman(oldTalisman.getId());
@@ -110,8 +117,9 @@ public class TalismanManager {
             }
         }
 
+        // Actualizar mano secundaria con verificaciones mejoradas
         ItemStack offHand = inventory.getItemInOffHand();
-        if (offHand != null) {
+        if (offHand != null && !offHand.getType().isAir()) {
             Talisman oldTalisman = getFromItem(offHand);
             if (oldTalisman != null) {
                 Talisman newTalisman = getTalisman(oldTalisman.getId());
@@ -135,7 +143,7 @@ public class TalismanManager {
     }
 
     public Map<String, Talisman> getTalismans() {
-        return talismans;
+        return Collections.unmodifiableMap(talismans);
     }
 
     public List<String> getTalismanIds() {
@@ -143,7 +151,7 @@ public class TalismanManager {
     }
 
     public Talisman getFromItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return null;
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return null;
 
         var meta = item.getItemMeta();
         var pdc = meta.getPersistentDataContainer();
@@ -166,7 +174,7 @@ public class TalismanManager {
             default -> null;
         };
 
-        if (item == null) return false;
+        if (item == null || item.getType().isAir()) return false;
 
         Talisman found = getFromItem(item);
         return found != null && found.getId().equalsIgnoreCase(t.getId());
@@ -188,7 +196,40 @@ public class TalismanManager {
         return null;
     }
 
+    /**
+     * Encuentra todos los talismanes equipados por el jugador
+     */
+    public List<Talisman> findAllEquippedTalismans(Player p) {
+        List<Talisman> equipped = new ArrayList<>();
+        for (Talisman t : talismans.values()) {
+            if (isAnySlotHolding(p, t)) {
+                equipped.add(t);
+            }
+        }
+        return equipped;
+    }
+
+    /**
+     * Limpia los efectos del jugador - ahora delega al EffectHandler
+     */
     public void clearEffects(Player p) {
-        plugin.getEffectManager().removeAllEffects(p);
+        // Delegar la limpieza de efectos al EffectHandler para consistencia
+        if (plugin.getEffectHandler() != null) {
+            plugin.getEffectHandler().cleanupPlayerEffects(p);
+        } else {
+            // Fallback por si EffectHandler no está disponible
+            cleanupEffectsFallback(p);
+        }
+    }
+
+    /**
+     * Método de respaldo para limpiar efectos si EffectHandler no está disponible
+     */
+    private void cleanupEffectsFallback(Player p) {
+        // Este método se mantiene por compatibilidad pero ya no es el principal
+        p.getActivePotionEffects().stream()
+                .filter(effect -> effect.getDuration() > 1000000 ||
+                        effect.getDuration() == org.bukkit.potion.PotionEffect.INFINITE_DURATION)
+                .forEach(effect -> p.removePotionEffect(effect.getType()));
     }
 }

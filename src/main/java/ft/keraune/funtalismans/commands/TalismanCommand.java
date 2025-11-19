@@ -23,6 +23,7 @@ public class TalismanCommand implements CommandExecutor {
         if (args.length == 0) {
             send(sender, plugin.getMessageManager().getMessage("usage_give_cmd"));
             send(sender, plugin.getMessageManager().getMessage("usage_reload"));
+            send(sender, "&e/talisman recipes &7- List crafting recipes"); // NUEVO
             return true;
         }
 
@@ -30,7 +31,6 @@ public class TalismanCommand implements CommandExecutor {
         // /talisman reload
         // ----------------------
         if (args[0].equalsIgnoreCase("reload")) {
-
             if (!sender.hasPermission("funtalismans.reload")) {
                 send(sender, plugin.getMessageManager().getMessage("no_permission"));
                 return true;
@@ -38,21 +38,22 @@ public class TalismanCommand implements CommandExecutor {
 
             long ms = System.currentTimeMillis();
 
-            // LOGS HARCODEADOS
             logHeader("§9Reloaded configuration!");
             logLine("§2Reloaded §fconfig.conf!");
             logLine("§2Reloaded §ftalismans.conf!");
             logLine("§2Reloaded §frarities.conf!");
+            logLine("§2Reloaded §fcrafting.conf!"); // NUEVO
 
             plugin.reloadAll();
 
             int talismanCount = plugin.getTalismanManager().getTalismans().size();
             int rarityCount = plugin.getRarityManager().getRarities().size();
+            int recipeCount = plugin.getCraftingManager().getRecipeKeys().size(); // NUEVO
             int updatedPlayers = plugin.getTalismanManager().getLastReloadUpdatedPlayers();
 
-            // LOGS HARCODEADOS con placeholders
             logLine("§2Loaded §f" + talismanCount + " §2talisman(s)!");
             logLine("§2Loaded §f" + rarityCount + " §2rarity(ies)!");
+            logLine("§2Loaded §f" + recipeCount + " §2recipe(s)!"); // NUEVO
             logLine("§2Updated §f" + updatedPlayers + " §2player(s)!");
             logFooter("§2Successful reload!");
 
@@ -65,7 +66,6 @@ public class TalismanCommand implements CommandExecutor {
         // /talisman give
         // ----------------------
         if (args[0].equalsIgnoreCase("give")) {
-
             if (!sender.hasPermission("funtalismans.give")) {
                 send(sender, plugin.getMessageManager().getMessage("no_permission"));
                 return true;
@@ -104,23 +104,29 @@ public class TalismanCommand implements CommandExecutor {
             return true;
         }
 
+        // ----------------------
+        // /talisman recipes - NUEVO
+        // ----------------------
+        if (args[0].equalsIgnoreCase("recipes")) {
+            if (!sender.hasPermission("funtalismans.reload")) {
+                send(sender, plugin.getMessageManager().getMessage("no_permission"));
+                return true;
+            }
+
+            java.util.List<String> recipes = plugin.getCraftingManager().getRecipeKeys();
+            send(sender, "&6Available crafting recipes: &e" + String.join("&7, &e", recipes));
+            return true;
+        }
+
         send(sender, plugin.getMessageManager().getMessage("unknown_subcommand"));
         return true;
     }
 
-    // ----------------------
-    // Util: mensajes uniformes
-    // ----------------------
     private void send(CommandSender sender, String msg) {
-        // msg ya viene con colores procesados por MessageManager.getMessage()
         sender.sendMessage(plugin.getPrefix() + msg);
     }
 
-    // ----------------------
-    // Util: logs para consola
-    // ----------------------
     private void logHeader(String title) {
-        // PREFIJO HARCODEADO EN CELESTE para consola
         Bukkit.getConsoleSender().sendMessage("§b[FunTalismans] §9" + title);
         Bukkit.getConsoleSender().sendMessage("§b╔════════════════════════════════════");
     }

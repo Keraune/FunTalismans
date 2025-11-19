@@ -11,10 +11,3 @@ commands:
     usage: /talisman
     aliases: [tali, talismans, ftalismans, ft]
 
-permissions:
-  funtalismans.reload:
-    description: Permission to reload the plugin
-    default: op
-  funtalismans.give:
-    description: Permission to give talismans
-    default: op

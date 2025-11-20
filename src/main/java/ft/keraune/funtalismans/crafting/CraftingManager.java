@@ -21,86 +21,58 @@ import java.util.*;
 public class CraftingManager implements Listener {
 
     private final FunTalismans plugin;
-    private final Map<NamespacedKey, Recipe> recipes;
-    private final Map<String, AdvancedRecipe> advancedRecipes;
+    private final Map<String, CustomRecipe> recipes;
 
     public CraftingManager(FunTalismans plugin) {
         this.plugin = plugin;
         this.recipes = new HashMap<>();
-        this.advancedRecipes = new HashMap<>();
         loadRecipes();
     }
 
     public void loadRecipes() {
-        unregisterRecipes();
-        advancedRecipes.clear();
+        recipes.clear();
 
         Config config = plugin.getConfigHandler().getConfig("crafting.conf");
         if (config == null || !config.hasPath("addRecipe")) {
-            createDefaultRecipes();
+            plugin.getLogger().warning("No crafting recipes found!");
             return;
         }
 
         List<? extends Config> recipeList = config.getConfigList("addRecipe");
+        plugin.getLogger().info("Loading " + recipeList.size() + " custom recipes...");
+
         for (Config recipeConfig : recipeList) {
             try {
-                registerAdvancedRecipe(recipeConfig);
+                registerCustomRecipe(recipeConfig);
             } catch (Exception e) {
-                // Error silencioso
+                plugin.getLogger().warning("Failed to register recipe: " + e.getMessage());
             }
         }
+
+        plugin.getLogger().info("Successfully loaded " + recipes.size() + " custom recipes");
     }
 
-    private void registerAdvancedRecipe(Config recipeConfig) {
+    private void registerCustomRecipe(Config recipeConfig) {
         String key = recipeConfig.getString("key");
-        List<String> shape = recipeConfig.getStringList("shape");
+        List<String> shapeList = recipeConfig.getStringList("shape");
         Config ingredientsConfig = recipeConfig.getConfig("ingredients");
         Config resultConfig = recipeConfig.getConfig("result");
 
-        // Determinar el tipo de resultado
+        // Crear resultado
         ItemStack result = createResultItem(resultConfig);
-        if (result == null) return;
-
-        // Crear clave única
-        NamespacedKey namespacedKey = new NamespacedKey(plugin, key.toLowerCase());
-
-        // Crear receta con forma
-        ShapedRecipe recipe = new ShapedRecipe(namespacedKey, result);
-        recipe.shape(shape.toArray(new String[0]));
-
-        // NUEVO: Agregar categoría para que aparezca en el libro de recetas (compatible con versiones)
-        try {
-            // Intentar usar RecipeCategory si está disponible (versiones más recientes)
-            Class<?> recipeCategoryClass = Class.forName("org.bukkit.inventory.RecipeCategory");
-            Object miscCategory = Enum.valueOf((Class<Enum>) recipeCategoryClass, "MISC");
-            recipe.getClass().getMethod("setCategory", recipeCategoryClass).invoke(recipe, miscCategory);
-
-            // También intentar setGroup si está disponible
-            recipe.getClass().getMethod("setGroup", String.class).invoke(recipe, "funtalismans_talismans");
-        } catch (Exception e) {
-            // Fallback para versiones antiguas - no hacer nada, las recetas funcionarán igual
+        if (result == null) {
+            plugin.getLogger().warning("Failed to create result for recipe: " + key);
+            return;
         }
 
-        // Configurar ingredientes (materiales y talismanes)
-        for (String ingredientChar : ingredientsConfig.root().keySet()) {
-            String ingredientValue = ingredientsConfig.getString(ingredientChar);
-            RecipeChoice choice = createIngredientChoice(ingredientValue);
+        // Crear nuestra receta personalizada
+        CustomRecipe recipe = new CustomRecipe(key, shapeList, ingredientsConfig, result);
+        recipes.put(key.toLowerCase(), recipe);
 
-            if (choice != null) {
-                recipe.setIngredient(ingredientChar.charAt(0), choice);
-            }
-        }
-
-        // Registrar receta
-        Bukkit.addRecipe(recipe);
-        recipes.put(namespacedKey, recipe);
-
-        // Guardar receta avanzada
-        advancedRecipes.put(key, new AdvancedRecipe(key, shape, result));
+        plugin.getLogger().info("Registered custom recipe: " + key);
     }
 
     private ItemStack createResultItem(Config resultConfig) {
-        // Si tiene material, crear item normal
         if (resultConfig.hasPath("material")) {
             Material material = Material.matchMaterial(resultConfig.getString("material"));
             if (material == null) return null;
@@ -123,9 +95,7 @@ public class CraftingManager implements Listener {
 
             result.setItemMeta(meta);
             return result;
-        }
-        // Si tiene talisman, crear talismán
-        else if (resultConfig.hasPath("talisman")) {
+        } else if (resultConfig.hasPath("talisman")) {
             String talismanId = resultConfig.getString("talisman");
             Talisman talisman = plugin.getTalismanManager().getTalisman(talismanId);
             return talisman != null ? TalismanItemBuilder.build(talisman) : null;
@@ -134,177 +104,183 @@ public class CraftingManager implements Listener {
         return null;
     }
 
-    private RecipeChoice createIngredientChoice(String ingredientValue) {
-        // Verificar si es un material normal
-        Material material = Material.matchMaterial(ingredientValue);
-        if (material != null) {
-            return new RecipeChoice.MaterialChoice(material);
-        }
-
-        // Verificar si es un talismán
-        Talisman talisman = plugin.getTalismanManager().getTalisman(ingredientValue);
-        if (talisman != null) {
-            return new RecipeChoice.ExactChoice(TalismanItemBuilder.build(talisman));
-        }
-
-        return null;
-    }
-
     @EventHandler
     public void onPrepareCraft(PrepareItemCraftEvent event) {
-        Recipe recipe = event.getRecipe();
-        if (recipe instanceof ShapedRecipe shapedRecipe &&
-                recipes.containsKey(shapedRecipe.getKey())) {
+        if (event.getInventory() == null) return;
+
+        CraftingInventory inventory = event.getInventory();
+        ItemStack[] matrix = inventory.getMatrix();
+
+        // Ignorar si la matriz está vacía
+        if (isEmptyMatrix(matrix)) return;
+
+        // Buscar si alguna de nuestras recetas personalizadas coincide
+        CustomRecipe matchedRecipe = findMatchingCustomRecipe(matrix);
+
+        if (matchedRecipe != null) {
+            plugin.getLogger().info("Custom recipe matched: " + matchedRecipe.getKey());
 
             // Verificar permisos
             if (event.getView().getPlayer() instanceof Player player) {
                 if (!player.hasPermission("funtalismans.craft")) {
-                    event.getInventory().setResult(null);
+                    plugin.getLogger().info("No permission - cancelling");
+                    inventory.setResult(null);
                     return;
                 }
             }
 
-            // Verificar que la receta sea exacta
-            if (!isAdvancedRecipeValid(event.getInventory(), shapedRecipe)) {
-                event.getInventory().setResult(null);
+            // Establecer el resultado
+            inventory.setResult(matchedRecipe.getResult());
+            plugin.getLogger().info("Setting result for custom recipe: " + matchedRecipe.getKey());
+        } else {
+            // Si no coincide con ninguna de nuestras recetas, pero contiene talismanes, cancelar
+            // para evitar que se usen talismanes en recetas normales de Minecraft
+            if (containsTalismans(matrix)) {
+                inventory.setResult(null);
             }
         }
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        // Descubrir recetas para el jugador que se conecta
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            discoverRecipesForPlayer(event.getPlayer());
-        }, 20L);
-    }
-
-    private void discoverRecipesForPlayer(Player player) {
-        for (NamespacedKey recipeKey : recipes.keySet()) {
-            try {
-                player.discoverRecipe(recipeKey);
-            } catch (Exception e) {
-                // Silencioso
-            }
-        }
-    }
-
-    public void discoverRecipesForOnlinePlayers() {
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            discoverRecipesForPlayer(player);
-        }
-    }
-
-    private boolean isAdvancedRecipeValid(CraftingInventory inventory, ShapedRecipe recipe) {
-        ItemStack[] matrix = inventory.getMatrix();
-        String[] shape = recipe.getShape();
-
-        for (int i = 0; i < shape.length; i++) {
-            for (int j = 0; j < shape[i].length(); j++) {
-                int slot = i * 3 + j;
-                char ingredientChar = shape[i].charAt(j);
-                ItemStack itemInSlot = matrix[slot];
-
-                RecipeChoice choice = recipe.getChoiceMap().get(ingredientChar);
-                if (choice != null && !choice.test(itemInSlot)) {
-                    return false;
-                } else if (choice == null && itemInSlot != null && !itemInSlot.getType().isAir()) {
-                    return false;
-                }
+    private boolean isEmptyMatrix(ItemStack[] matrix) {
+        for (ItemStack item : matrix) {
+            if (item != null && !item.getType().isAir()) {
+                return false;
             }
         }
         return true;
     }
 
-    private void createDefaultRecipes() {
-        // Recetas por defecto si no hay configuración
-        createDefaultTalismanRecipes();
-    }
-
-    private void createDefaultTalismanRecipes() {
-        // Ejemplo: Combinar dos talismanes para crear uno más poderoso
-        Talisman sphereTitan = plugin.getTalismanManager().getTalisman("sphereTitan");
-        Talisman castigador = plugin.getTalismanManager().getTalisman("talismanCastigador");
-
-        if (sphereTitan != null && castigador != null) {
-            // Crear talismán de fusión (ejemplo)
-            Talisman fusionTalisman = plugin.getTalismanManager().getTalisman("fusionTalisman");
-            if (fusionTalisman != null) {
-                registerFusionRecipe(fusionTalisman, sphereTitan, castigador);
+    private CustomRecipe findMatchingCustomRecipe(ItemStack[] matrix) {
+        for (CustomRecipe recipe : recipes.values()) {
+            if (matchesCustomRecipe(matrix, recipe)) {
+                return recipe;
             }
         }
+        return null;
     }
 
-    private void registerFusionRecipe(Talisman result, Talisman... ingredients) {
-        NamespacedKey key = new NamespacedKey(plugin, "fusion_" + result.getId().toLowerCase());
-        ItemStack resultItem = TalismanItemBuilder.build(result);
+    private boolean matchesCustomRecipe(ItemStack[] matrix, CustomRecipe recipe) {
+        String[] shape = recipe.getShape();
+        Config ingredients = recipe.getIngredients();
 
-        ShapedRecipe recipe = new ShapedRecipe(key, resultItem);
-        recipe.shape("S C", " D ", "   ");
+        // Verificar cada slot del crafting
+        for (int i = 0; i < matrix.length; i++) {
+            ItemStack currentItem = matrix[i];
+            int row = i / 3;
+            int col = i % 3;
 
-        try {
-            // Intentar usar RecipeCategory si está disponible
-            Class<?> recipeCategoryClass = Class.forName("org.bukkit.inventory.RecipeCategory");
-            Object miscCategory = Enum.valueOf((Class<Enum>) recipeCategoryClass, "MISC");
-            recipe.getClass().getMethod("setCategory", recipeCategoryClass).invoke(recipe, miscCategory);
-            recipe.getClass().getMethod("setGroup", String.class).invoke(recipe, "funtalismans_fusion");
-        } catch (Exception e) {
-            // Fallback para versiones antiguas
+            // Verificar si estamos dentro de la forma definida
+            if (row < shape.length && col < shape[row].length()) {
+                char expectedChar = shape[row].charAt(col);
+
+                // Si es espacio, debe estar vacío
+                if (expectedChar == ' ') {
+                    if (currentItem != null && !currentItem.getType().isAir()) {
+                        return false;
+                    }
+                    continue;
+                }
+
+                // Obtener el ingrediente esperado
+                String ingredientValue = ingredients.getString(String.valueOf(expectedChar));
+
+                // Verificar si coincide
+                if (!matchesIngredient(currentItem, ingredientValue)) {
+                    return false;
+                }
+            } else {
+                // Fuera de la forma, debe estar vacío
+                if (currentItem != null && !currentItem.getType().isAir()) {
+                    return false;
+                }
+            }
         }
 
-        recipe.setIngredient('S', new RecipeChoice.ExactChoice(TalismanItemBuilder.build(ingredients[0])));
-        recipe.setIngredient('C', new RecipeChoice.ExactChoice(TalismanItemBuilder.build(ingredients[1])));
-        recipe.setIngredient('D', Material.DRAGON_EGG);
+        return true;
+    }
 
-        Bukkit.addRecipe(recipe);
-        recipes.put(key, recipe);
+    private boolean matchesIngredient(ItemStack item, String ingredientValue) {
+        // Si el slot está vacío
+        if (item == null || item.getType().isAir()) {
+            return false;
+        }
+
+        Material material = Material.matchMaterial(ingredientValue);
+        if (material != null) {
+            // Es un material normal - comparar tipo
+            return item.getType() == material;
+        } else {
+            // Es un talismán - verificar por ID
+            TalismanManager manager = plugin.getTalismanManager();
+            Talisman talisman = manager.getFromItem(item);
+
+            if (talisman != null) {
+                plugin.getLogger().info("Found talisman: " + talisman.getId() + " expected: " + ingredientValue);
+            }
+
+            return talisman != null && talisman.getId().equalsIgnoreCase(ingredientValue);
+        }
+    }
+
+    private boolean containsTalismans(ItemStack[] matrix) {
+        TalismanManager manager = plugin.getTalismanManager();
+        for (ItemStack item : matrix) {
+            if (item != null && !item.getType().isAir() && manager.getFromItem(item) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        // No necesitamos descubrir recetas ya que no usamos el sistema de Bukkit
+    }
+
+    public void discoverRecipesForOnlinePlayers() {
+        // No necesitamos descubrir recetas ya que no usamos el sistema de Bukkit
     }
 
     public void reloadRecipes() {
         loadRecipes();
-        // Rediscover recipes for online players
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            discoverRecipesForOnlinePlayers();
-        }, 20L);
     }
 
     public void unregisterRecipes() {
-        for (NamespacedKey key : recipes.keySet()) {
-            Bukkit.removeRecipe(key);
-        }
         recipes.clear();
     }
 
     public List<String> getRecipeKeys() {
-        return new ArrayList<>(advancedRecipes.keySet());
+        return new ArrayList<>(recipes.keySet());
     }
 
-    public Set<NamespacedKey> getRecipeNamespacedKeys() {
-        return new HashSet<>(recipes.keySet());
-    }
-
-    /**
-     * Método auxiliar para verificar si RecipeCategory está disponible
-     */
-    public boolean isRecipeCategoryAvailable() {
-        try {
-            Class.forName("org.bukkit.inventory.RecipeCategory");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
-    // Clase para recetas avanzadas
-    private static class AdvancedRecipe {
+    // Clase interna para nuestras recetas personalizadas
+    private static class CustomRecipe {
         private final String key;
-        private final List<String> shape;
+        private final String[] shape;
+        private final Config ingredients;
         private final ItemStack result;
 
-        public AdvancedRecipe(String key, List<String> shape, ItemStack result) {
+        public CustomRecipe(String key, List<String> shapeList, Config ingredients, ItemStack result) {
             this.key = key;
-            this.shape = shape;
+            this.shape = shapeList.toArray(new String[0]);
+            this.ingredients = ingredients;
             this.result = result;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public String[] getShape() {
+            return shape;
+        }
+
+        public Config getIngredients() {
+            return ingredients;
+        }
+
+        public ItemStack getResult() {
+            return result.clone();
         }
     }
 }

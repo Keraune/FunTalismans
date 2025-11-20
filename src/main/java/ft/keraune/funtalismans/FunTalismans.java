@@ -4,7 +4,6 @@ import ft.keraune.funtalismans.commands.TalismanCommand;
 import ft.keraune.funtalismans.commands.TalismanTabCompleter;
 import ft.keraune.funtalismans.config.ConfigHandler;
 import ft.keraune.funtalismans.config.ConfigManager;
-import ft.keraune.funtalismans.listeners.CraftListener;
 import ft.keraune.funtalismans.listeners.PlayerQuitListener;
 import ft.keraune.funtalismans.manager.TalismanManager;
 import ft.keraune.funtalismans.manager.RarityManager;
@@ -15,7 +14,6 @@ import ft.keraune.funtalismans.crafting.CraftingManager;
 import ft.keraune.funtalismans.utils.TextUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class FunTalismans extends JavaPlugin {
@@ -49,56 +47,38 @@ public class FunTalismans extends JavaPlugin {
         effectHandler = new EffectHandler(this);
         craftingManager = new CraftingManager(this);
 
-        // Registrar comandos y eventos
-        Bukkit.getScheduler().runTask(this, () -> {
-            if (getCommand("talisman") != null) {
-                getCommand("talisman").setExecutor(new TalismanCommand());
-                getCommand("talisman").setTabCompleter(new TalismanTabCompleter());
-            }
-        });
+        // Registrar comandos
+        if (getCommand("talisman") != null) {
+            getCommand("talisman").setExecutor(new TalismanCommand());
+            getCommand("talisman").setTabCompleter(new TalismanTabCompleter());
+        }
 
+        // Registrar eventos - IMPORTANTE: NO registrar CraftListener
         getServer().getPluginManager().registerEvents(new BlockPlaceListener(this), this);
-        getServer().getPluginManager().registerEvents(new CraftListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerQuitListener(this), this);
         getServer().getPluginManager().registerEvents(craftingManager, this);
 
-        // NUEVO: Descubrir recetas para jugadores online después de cargar
-        Bukkit.getScheduler().runTaskLater(this, () -> {
-            craftingManager.discoverRecipesForOnlinePlayers();
-        }, 40L);
+        // Descubrir recetas
+        Bukkit.getScheduler().runTask(this, craftingManager::discoverRecipesForOnlinePlayers);
 
         getLogger().info("FunTalismans enabled!");
     }
 
     public void reloadAll() {
-        // 1. Recargar configuraciones
         configHandler.reloadAll();
         configManager.reload();
-
-        // 2. Recargar mensajes
         messageManager.reload();
-
-        // 3. Recargar managers
         rarityManager.reload();
-
-        // 4. Recargar talismanes
         talismanManager.reloadTalismans();
-
-        // 5. Recargar sistema de crafting
         craftingManager.reloadRecipes();
     }
 
     private void silenceMojangLogs() {
         try {
-            java.util.logging.Logger authLibLogger = java.util.logging.Logger.getLogger("com.mojang.authlib");
-            authLibLogger.setLevel(java.util.logging.Level.SEVERE);
-
+            java.util.logging.Logger.getLogger("com.mojang.authlib").setLevel(java.util.logging.Level.SEVERE);
             java.util.logging.Logger.getLogger("com.mojang.authlib.yggdrasil").setLevel(java.util.logging.Level.SEVERE);
             java.util.logging.Logger.getLogger("com.mojang").setLevel(java.util.logging.Level.SEVERE);
-
-        } catch (Exception e) {
-            // Empty catch intencional
-        }
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -119,9 +99,7 @@ public class FunTalismans extends JavaPlugin {
             if (effectHandler != null) {
                 effectHandler.cleanupPlayerEffects(player);
             }
-        } catch (Exception e) {
-            // Manejo silencioso
-        }
+        } catch (Exception ignored) {}
     }
 
     public static FunTalismans getInstance() { return instance; }

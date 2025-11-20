@@ -112,12 +112,17 @@ public class TalismanItemBuilder {
             }
         }
 
-        // ATRIBUTOS
+        // ATRIBUTOS (con UUID determinístico)
         for (TalismanAttribute attr : t.getAttributes()) {
             if (attr.getType() != null && attr.getSlot() != null) {
                 try {
+                    // UUID determinístico basado en el ID del talismán y el atributo
+                    UUID deterministicUUID = UUID.nameUUIDFromBytes(
+                            (t.getId() + ":" + attr.getType().getKey().getKey() + ":" + attr.getSlot().name()).getBytes()
+                    );
+
                     AttributeModifier modifier = new AttributeModifier(
-                            UUID.randomUUID(),
+                            deterministicUUID, // UUID determinístico en lugar de random
                             t.getId(),
                             attr.getAmount(),
                             attr.getOperation(),
@@ -151,19 +156,21 @@ public class TalismanItemBuilder {
             return new ItemStack(mat, t.getCount());
         }
 
-        // NBT EXTRA
+        // NBT EXTRA - solo aplicar NBT que no sean el ID del talismán
         try {
             NBTItem nbt = new NBTItem(item, true);
             t.getNbt().forEach((key, value) -> {
-                try {
-                    nbt.setObject(key, value);
-                } catch (Exception e) {
-                    LOGGER.warning("Failed to set NBT key '" + key + "' for talisman '" + t.getId() + "': " + e.getMessage());
+                // No sobrescribir el ID del talismán en el NBT
+                if (!key.equals("id")) {
+                    try {
+                        nbt.setObject(key, value);
+                    } catch (Exception e) {
+                        // Error silencioso
+                    }
                 }
             });
             return nbt.getItem();
         } catch (Throwable e) {
-            LOGGER.warning("Failed to apply NBT for talisman '" + t.getId() + "': " + e.getMessage());
             return item;
         }
     }

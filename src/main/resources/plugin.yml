@@ -18,6 +18,3 @@ permissions:
   funtalismans.give:
     description: Permission to give talismans
     default: op
-  funtalismans.craft:
-    description: Permission to craft talismans
-    default: op

@@ -75,7 +75,10 @@ public class TalismanManager {
                 if (oldTalisman != null) {
                     Talisman newTalisman = getTalisman(oldTalisman.getId());
                     if (newTalisman != null) {
+                        // MANTENER LA CANTIDAD ORIGINAL del item
+                        int originalAmount = item.getAmount();
                         ItemStack newItem = TalismanItemBuilder.build(newTalisman);
+                        newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
                         inventory.setItem(i, newItem);
                         updated = true;
                     }
@@ -93,7 +96,11 @@ public class TalismanManager {
                 if (oldTalisman != null) {
                     Talisman newTalisman = getTalisman(oldTalisman.getId());
                     if (newTalisman != null) {
-                        armor[i] = TalismanItemBuilder.build(newTalisman);
+                        // MANTENER LA CANTIDAD ORIGINAL del item de armadura
+                        int originalAmount = item.getAmount();
+                        ItemStack newItem = TalismanItemBuilder.build(newTalisman);
+                        newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
+                        armor[i] = newItem;
                         armorUpdated = true;
                     }
                 }
@@ -111,7 +118,11 @@ public class TalismanManager {
             if (oldTalisman != null) {
                 Talisman newTalisman = getTalisman(oldTalisman.getId());
                 if (newTalisman != null) {
-                    inventory.setItemInMainHand(TalismanItemBuilder.build(newTalisman));
+                    // MANTENER LA CANTIDAD ORIGINAL del item en mano
+                    int originalAmount = mainHand.getAmount();
+                    ItemStack newItem = TalismanItemBuilder.build(newTalisman);
+                    newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
+                    inventory.setItemInMainHand(newItem);
                     updated = true;
                 }
             }
@@ -124,7 +135,11 @@ public class TalismanManager {
             if (oldTalisman != null) {
                 Talisman newTalisman = getTalisman(oldTalisman.getId());
                 if (newTalisman != null) {
-                    inventory.setItemInOffHand(TalismanItemBuilder.build(newTalisman));
+                    // MANTENER LA CANTIDAD ORIGINAL del item en offhand
+                    int originalAmount = offHand.getAmount();
+                    ItemStack newItem = TalismanItemBuilder.build(newTalisman);
+                    newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
+                    inventory.setItemInOffHand(newItem);
                     updated = true;
                 }
             }

@@ -33,19 +33,7 @@ public class TalismanItemBuilder {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        // TEXTURA PARA CABEZAS
-        if (meta instanceof SkullMeta skullMeta && t.getNbt().containsKey("texture")) {
-            try {
-                String texture = t.getNbt().get("texture").toString();
-                skullMeta = SkullUtil.applyTexture(skullMeta, texture);
-                item.setItemMeta(skullMeta);
-                meta = skullMeta;
-            } catch (Exception e) {
-                LOGGER.warning("Failed to apply custom texture for talisman '" + t.getId() + "': " + e.getMessage());
-            }
-        }
-
-        // APLICAR PROPIEDADES BÁSICAS
+        // APLICAR PROPIEDADES BÁSICAS PRIMERO
         meta.setDisplayName(TextUtil.color(t.getName()));
         meta.setLore(t.getLore().stream().map(TextUtil::color).toList());
         meta.setUnbreakable(t.isUnbreakable());
@@ -148,12 +136,23 @@ public class TalismanItemBuilder {
             LOGGER.warning("Failed to set PDC for talisman '" + t.getId() + "': " + e.getMessage());
         }
 
-        // APLICAR META
+        // APLICAR META PRIMERO
         try {
             item.setItemMeta(meta);
         } catch (Exception e) {
             LOGGER.warning("Failed to set item meta for talisman '" + t.getId() + "': " + e.getMessage());
             return new ItemStack(mat, t.getCount());
+        }
+
+        // TEXTURA PARA CABEZAS - APLICAR DESPUÉS del meta básico
+        if (item.getItemMeta() instanceof SkullMeta skullMeta && t.getNbt().containsKey("texture")) {
+            try {
+                String texture = t.getNbt().get("texture").toString();
+                skullMeta = SkullUtil.applyTexture(skullMeta, texture);
+                item.setItemMeta(skullMeta);
+            } catch (Exception e) {
+                LOGGER.warning("Failed to apply custom texture for talisman '" + t.getId() + "': " + e.getMessage());
+            }
         }
 
         // NBT EXTRA - solo aplicar NBT que no sean el ID del talismán

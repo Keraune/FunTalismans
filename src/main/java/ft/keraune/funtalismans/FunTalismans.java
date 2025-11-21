@@ -10,7 +10,6 @@ import ft.keraune.funtalismans.manager.RarityManager;
 import ft.keraune.funtalismans.manager.MessageManager;
 import ft.keraune.funtalismans.effects.EffectHandler;
 import ft.keraune.funtalismans.listeners.BlockPlaceListener;
-import ft.keraune.funtalismans.crafting.CraftingManager;
 import ft.keraune.funtalismans.utils.TextUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -26,7 +25,6 @@ public class FunTalismans extends JavaPlugin {
     private EffectHandler effectHandler;
     private RarityManager rarityManager;
     private MessageManager messageManager;
-    private CraftingManager craftingManager;
 
     @Override
     public void onEnable() {
@@ -45,7 +43,6 @@ public class FunTalismans extends JavaPlugin {
         talismanManager.loadTalismans();
 
         effectHandler = new EffectHandler(this);
-        craftingManager = new CraftingManager(this);
 
         // Registrar comandos
         if (getCommand("talisman") != null) {
@@ -53,13 +50,9 @@ public class FunTalismans extends JavaPlugin {
             getCommand("talisman").setTabCompleter(new TalismanTabCompleter());
         }
 
-        // Registrar eventos - IMPORTANTE: NO registrar CraftListener
+        // Registrar eventos
         getServer().getPluginManager().registerEvents(new BlockPlaceListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerQuitListener(this), this);
-        getServer().getPluginManager().registerEvents(craftingManager, this);
-
-        // Descubrir recetas
-        Bukkit.getScheduler().runTask(this, craftingManager::discoverRecipesForOnlinePlayers);
 
         getLogger().info("FunTalismans enabled!");
     }
@@ -70,7 +63,6 @@ public class FunTalismans extends JavaPlugin {
         messageManager.reload();
         rarityManager.reload();
         talismanManager.reloadTalismans();
-        craftingManager.reloadRecipes();
     }
 
     private void silenceMojangLogs() {
@@ -84,7 +76,6 @@ public class FunTalismans extends JavaPlugin {
     @Override
     public void onDisable() {
         cleanupAllPlayerEffects();
-        craftingManager.unregisterRecipes();
         getLogger().info("FunTalismans disabled!");
     }
 
@@ -110,7 +101,6 @@ public class FunTalismans extends JavaPlugin {
     public EffectHandler getEffectHandler() { return effectHandler; }
     public RarityManager getRarityManager() { return rarityManager; }
     public MessageManager getMessageManager() { return messageManager; }
-    public CraftingManager getCraftingManager() { return craftingManager; }
 
     public String getPrefix() {
         return TextUtil.color(configHandler.getConfig("config.conf").getString("plugin.prefix"));

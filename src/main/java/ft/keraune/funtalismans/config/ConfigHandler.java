@@ -21,7 +21,6 @@ public class ConfigHandler {
         loadConfig("config.conf");
         loadConfig("talismans.conf");
         loadConfig("rarities.conf");
-        loadConfig("crafting.conf");
 
         if (getConfig("config.conf") == null) {
             plugin.getLogger().severe("CRITICAL: config.conf failed to load!");

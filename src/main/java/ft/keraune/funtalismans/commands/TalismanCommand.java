@@ -23,7 +23,6 @@ public class TalismanCommand implements CommandExecutor {
         if (args.length == 0) {
             send(sender, plugin.getMessageManager().getMessage("usage_give_cmd"));
             send(sender, plugin.getMessageManager().getMessage("usage_reload"));
-            send(sender, "&e/talisman recipes &7- List crafting recipes"); // NUEVO
             return true;
         }
 
@@ -42,18 +41,15 @@ public class TalismanCommand implements CommandExecutor {
             logLine("§2Reloaded §fconfig.conf!");
             logLine("§2Reloaded §ftalismans.conf!");
             logLine("§2Reloaded §frarities.conf!");
-            logLine("§2Reloaded §fcrafting.conf!"); // NUEVO
 
             plugin.reloadAll();
 
             int talismanCount = plugin.getTalismanManager().getTalismans().size();
             int rarityCount = plugin.getRarityManager().getRarities().size();
-            int recipeCount = plugin.getCraftingManager().getRecipeKeys().size(); // NUEVO
             int updatedPlayers = plugin.getTalismanManager().getLastReloadUpdatedPlayers();
 
             logLine("§2Loaded §f" + talismanCount + " §2talisman(s)!");
             logLine("§2Loaded §f" + rarityCount + " §2rarity(ies)!");
-            logLine("§2Loaded §f" + recipeCount + " §2recipe(s)!"); // NUEVO
             logLine("§2Updated §f" + updatedPlayers + " §2player(s)!");
             logFooter("§2Successful reload!");
 
@@ -101,20 +97,6 @@ public class TalismanCommand implements CommandExecutor {
 
             send(sender, plugin.getMessageManager().getMessage("give_success",
                     Map.of("talisman", id, "player", target.getName())));
-            return true;
-        }
-
-        // ----------------------
-        // /talisman recipes - NUEVO
-        // ----------------------
-        if (args[0].equalsIgnoreCase("recipes")) {
-            if (!sender.hasPermission("funtalismans.reload")) {
-                send(sender, plugin.getMessageManager().getMessage("no_permission"));
-                return true;
-            }
-
-            java.util.List<String> recipes = plugin.getCraftingManager().getRecipeKeys();
-            send(sender, "&6Available crafting recipes: &e" + String.join("&7, &e", recipes));
             return true;
         }
 

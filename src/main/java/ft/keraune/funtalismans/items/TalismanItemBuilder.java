@@ -159,25 +159,20 @@ public class TalismanItemBuilder {
         try {
             NBTItem nbt = new NBTItem(item, true);
 
-            // ID usado para OptiFine CIT (solo si se define en el JSON/YAML)
+            // ID usado si el YAML tiene "id"
             if (t.getNbt().containsKey("id")) {
                 String citId = t.getNbt().get("id").toString();
 
-                // Guardar SOLO para OptiFine CIT
+                // Grabar SOLO en raíz
                 nbt.setString("talisman_id", citId);
-
-                try {
-                    var tag = nbt.addCompound("tag");
-                    tag.setString("talisman_id", citId);
-                } catch (Throwable ignored) {}
             }
 
-            // Aplicar NBT extra, evitando sobrescribir IDs internos del plugin
+            // Aplicar NBT extra sin sobrescribir los internos
             t.getNbt().forEach((key, value) -> {
                 if (key.equalsIgnoreCase("id") ||
                         key.equalsIgnoreCase("talisman_id") ||
                         key.equalsIgnoreCase("publicbukkitvalues")) {
-                    return; // NO escribir IDs que afectan items antiguos
+                    return;
                 }
 
                 try {

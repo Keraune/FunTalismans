@@ -43,6 +43,7 @@ public class TalismanCommand implements CommandExecutor {
             logLine("§2Reloaded §frarities.conf!");
 
             plugin.reloadAll();
+            plugin.getTalismanManager().updateTalismanContainers();
 
             int talismanCount = plugin.getTalismanManager().getTalismans().size();
             int rarityCount = plugin.getRarityManager().getRarities().size();

@@ -5,10 +5,12 @@ import ft.keraune.funtalismans.api.Talisman;
 import ft.keraune.funtalismans.items.TalismanItemBuilder;
 import ft.keraune.funtalismans.items.SkullUtil;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
+import org.bukkit.World;
+import org.bukkit.block.BlockState;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.*;
 
 import java.util.*;
 
@@ -42,6 +44,7 @@ public class TalismanManager {
         SkullUtil.resetWarning();
 
         lastReloadUpdatedPlayers = updateAllPlayerItems(oldTalismans);
+        updateAllEnderChests();
 
         return lastReloadUpdatedPlayers;
     }
@@ -246,5 +249,106 @@ public class TalismanManager {
                 .filter(effect -> effect.getDuration() > 1000000 ||
                         effect.getDuration() == org.bukkit.potion.PotionEffect.INFINITE_DURATION)
                 .forEach(effect -> p.removePotionEffect(effect.getType()));
+    }
+
+    public void updateTalismanContainers() {
+        for (World world : Bukkit.getWorlds()) {
+
+            // ============================
+            // ACTUALIZAR ITEMS TIRADOS
+            // ============================
+            for (Item entityItem : world.getEntitiesByClass(Item.class)) {
+                ItemStack stack = entityItem.getItemStack();
+                Talisman t = getFromItem(stack);
+                if (t != null) {
+                    int amount = stack.getAmount();
+                    ItemStack newItem = TalismanItemBuilder.build(t);
+                    newItem.setAmount(amount);
+                    entityItem.setItemStack(newItem);
+                }
+            }
+
+            // ============================
+            // ACTUALIZAR CONTENEDORES
+            // ============================
+            for (Chunk chunk : world.getLoadedChunks()) {
+                for (BlockState state : chunk.getTileEntities()) {
+
+                    if (state instanceof InventoryHolder holder) {
+                        Inventory inv = holder.getInventory();
+
+                        for (int i = 0; i < inv.getSize(); i++) {
+                            ItemStack item = inv.getItem(i);
+                            if (item == null || item.getType().isAir()) continue;
+
+                            Talisman talisman = getFromItem(item);
+                            if (talisman != null) {
+
+                                int amount = item.getAmount();
+
+                                ItemStack newItem = TalismanItemBuilder.build(talisman);
+                                newItem.setAmount(amount);
+
+                                inv.setItem(i, newItem);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Actualizar un inventario completo (cofres, shulkers, barriles, etc)
+    public void updateInventoryTalismans(Inventory inv) {
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack item = inv.getItem(i);
+            if (item == null || item.getType().isAir()) continue;
+
+            Talisman t = getFromItem(item);
+            if (t != null) {
+                int amount = item.getAmount();
+                ItemStack newItem = TalismanItemBuilder.build(t);
+                newItem.setAmount(amount);
+                inv.setItem(i, newItem);
+            }
+        }
+    }
+
+
+    // Actualizar un solo itemStack (por ejemplo cuando se recoge del suelo)
+    public void updateItemStack(ItemStack stack) {
+        if (stack == null || stack.getType().isAir()) return;
+
+        Talisman t = getFromItem(stack);
+        if (t != null) {
+            int amount = stack.getAmount();
+            ItemStack newItem = TalismanItemBuilder.build(t);
+            newItem.setAmount(amount);
+
+            // Aplicar valores al ItemStack original
+            stack.setType(newItem.getType());
+            stack.setItemMeta(newItem.getItemMeta());
+            stack.setAmount(amount);
+        }
+    }
+
+    // Actualizar todos los enderchests de los jugadores en línea
+    public void updateAllEnderChests() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Inventory ender = player.getEnderChest();
+
+            for (int i = 0; i < ender.getSize(); i++) {
+                ItemStack item = ender.getItem(i);
+                if (item == null || item.getType().isAir()) continue;
+
+                Talisman t = getFromItem(item);
+                if (t != null) {
+                    int amount = item.getAmount();
+                    ItemStack newItem = TalismanItemBuilder.build(t);
+                    newItem.setAmount(amount);
+                    ender.setItem(i, newItem);
+                }
+            }
+        }
     }
 }

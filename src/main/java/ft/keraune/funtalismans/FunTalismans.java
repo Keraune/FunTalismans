@@ -5,6 +5,7 @@ import ft.keraune.funtalismans.commands.TalismanTabCompleter;
 import ft.keraune.funtalismans.config.ConfigHandler;
 import ft.keraune.funtalismans.config.ConfigManager;
 import ft.keraune.funtalismans.listeners.PlayerQuitListener;
+import ft.keraune.funtalismans.listeners.TalismanUpdateListeners;
 import ft.keraune.funtalismans.manager.TalismanManager;
 import ft.keraune.funtalismans.manager.RarityManager;
 import ft.keraune.funtalismans.manager.MessageManager;
@@ -53,6 +54,7 @@ public class FunTalismans extends JavaPlugin {
         // Registrar eventos
         getServer().getPluginManager().registerEvents(new BlockPlaceListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerQuitListener(this), this);
+        getServer().getPluginManager().registerEvents(new TalismanUpdateListeners(this), this);
 
         getLogger().info("FunTalismans enabled!");
     }

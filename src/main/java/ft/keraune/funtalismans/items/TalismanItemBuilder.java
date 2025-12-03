@@ -159,12 +159,10 @@ public class TalismanItemBuilder {
         try {
             NBTItem nbt = new NBTItem(item, true);
 
-            // ID usado si el YAML tiene "id"
+            // ID usado si el CONF tiene "id"
             if (t.getNbt().containsKey("id")) {
                 String citId = t.getNbt().get("id").toString();
-
-                // Grabar SOLO en raíz
-                nbt.setString("talisman_id", citId);
+                nbt.setString("talisman_id", citId);  // Grabar SOLO en raíz
             }
 
             // Aplicar NBT extra sin sobrescribir los internos

@@ -20,6 +20,9 @@ public class TextUtil {
     private static final Pattern STYLE_PATTERN =
             Pattern.compile("<(/?\\w+)>");
 
+    private static final Pattern STRIP_COLOR_PATTERN =
+            Pattern.compile("(?i)§[0-9A-FK-ORX]|&[0-9A-FK-ORX]|<[^>]*>");
+
     public static String color(String input) {
         if (input == null || input.isEmpty()) return "";
 
@@ -41,6 +44,25 @@ public class TextUtil {
 
         // 5) Legacy color codes (&a, &c, etc.)
         return ChatColor.translateAlternateColorCodes('&', text);
+    }
+
+    // ============================================================
+    // REMOVER COLORES Y FORMATOS
+    // ============================================================
+    public static String stripColor(String input) {
+        if (input == null || input.isEmpty()) return "";
+
+        // Primero eliminar todos los códigos de color y formato
+        String stripped = STRIP_COLOR_PATTERN.matcher(input).replaceAll("");
+
+        // También eliminar gradientes y sus etiquetas
+        stripped = stripped.replaceAll("<gradient:[^>]*>", "")
+                .replaceAll("</gradient>", "");
+
+        // Eliminar cualquier otra etiqueta HTML-like
+        stripped = stripped.replaceAll("<[^>]*>", "");
+
+        return stripped.trim();
     }
 
     // ============================================================

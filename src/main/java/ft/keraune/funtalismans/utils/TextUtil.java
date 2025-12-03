@@ -8,142 +8,143 @@ import java.util.regex.Pattern;
 
 public class TextUtil {
 
-    private static final Pattern HEX_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
-    private static final Pattern TAG_HEX_PATTERN = Pattern.compile("<#([A-Fa-f0-9]{6})>");
-    private static final Pattern GRADIENT_PATTERN = Pattern.compile("<gradient:((?:#[A-Fa-f0-9]{6}:?)+)>(.*?)</gradient>");
-    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?\\w+)>");
+    private static final Pattern GRADIENT_PATTERN =
+            Pattern.compile("<gradient:((?:#[A-Fa-f0-9]{6}:?)+)>([^<]*)</gradient>");
 
-    public static String color(String text) {
-        if (text == null) return "";
+    private static final Pattern HEX_PATTERN =
+            Pattern.compile("&#([A-Fa-f0-9]{6})");
 
-        // Procesar todo: estilos + gradientes + HEX
-        text = processText(text);
+    private static final Pattern TAG_HEX_PATTERN =
+            Pattern.compile("<#([A-Fa-f0-9]{6})>");
 
-        // Aplicar legacy & (esto es lo que faltaba para que funcionen &c, &a, etc.)
+    private static final Pattern STYLE_PATTERN =
+            Pattern.compile("<(/?\\w+)>");
+
+    public static String color(String input) {
+        if (input == null || input.isEmpty()) return "";
+
+        String text = input;
+
+        // 1) Procesar gradientes primero
+        text = applyGradients(text);
+
+        // 2) HEX con formato <#FFFFFF>
+        text = TAG_HEX_PATTERN.matcher(text)
+                .replaceAll(m -> toHex(m.group(1)));
+
+        // 3) HEX con formato &#FFFFFF
+        text = HEX_PATTERN.matcher(text)
+                .replaceAll(m -> toHex(m.group(1)));
+
+        // 4) Estilos tipo <b>, <i>, <red>, <reset>, etc.
+        text = applyStyleTags(text);
+
+        // 5) Legacy color codes (&a, &c, etc.)
         return ChatColor.translateAlternateColorCodes('&', text);
     }
 
-    private static String processText(String text) {
-        StringBuilder result = new StringBuilder();
-        Deque<Character> activeStyles = new ArrayDeque<>();
+    // ============================================================
+    // GRADIENT
+    // ============================================================
+    private static String applyGradients(String text) {
+        Matcher matcher = GRADIENT_PATTERN.matcher(text);
+        StringBuffer buffer = new StringBuffer();
 
-        int index = 0;
-        while (index < text.length()) {
-            // Gradiente
-            Matcher gradientMatcher = GRADIENT_PATTERN.matcher(text);
-            if (gradientMatcher.find(index) && gradientMatcher.start() == index) {
-                String colors = gradientMatcher.group(1);
-                String content = gradientMatcher.group(2);
-                result.append(buildGradient(content, colors, activeStyles));
-                index = gradientMatcher.end();
-                continue;
-            }
+        while (matcher.find()) {
+            String colorList = matcher.group(1);
+            String content = matcher.group(2);
 
-            // Tag HEX <#XXXXXX>
-            Matcher tagHexMatcher = TAG_HEX_PATTERN.matcher(text);
-            if (tagHexMatcher.find(index) && tagHexMatcher.start() == index) {
-                String hex = tagHexMatcher.group(1);
-                result.append(toMinecraftHex(hex));
-                index = tagHexMatcher.end();
-                continue;
-            }
-
-            // HEX legacy &#XXXXXX
-            Matcher hexMatcher = HEX_PATTERN.matcher(text);
-            if (hexMatcher.find(index) && hexMatcher.start() == index) {
-                String hex = hexMatcher.group(1);
-                result.append(toMinecraftHex(hex));
-                index = hexMatcher.end();
-                continue;
-            }
-
-            // MiniMessage tags
-            Matcher tagMatcher = TAG_PATTERN.matcher(text);
-            if (tagMatcher.find(index) && tagMatcher.start() == index) {
-                String tag = tagMatcher.group(1).toLowerCase();
-                switch (tag) {
-                    case "b" -> activeStyles.add('l');
-                    case "i" -> activeStyles.add('o');
-                    case "u" -> activeStyles.add('n');
-                    case "st" -> activeStyles.add('m');
-                    case "obf" -> activeStyles.add('k');
-                    case "/b" -> activeStyles.remove('l');
-                    case "/i" -> activeStyles.remove('o');
-                    case "/u" -> activeStyles.remove('n');
-                    case "/st" -> activeStyles.remove('m');
-                    case "/obf" -> activeStyles.remove('k');
-                    case "reset" -> activeStyles.clear();
-                    case "black" -> result.append("§0");
-                    case "dark_blue" -> result.append("§1");
-                    case "dark_green" -> result.append("§2");
-                    case "dark_aqua" -> result.append("§3");
-                    case "dark_red" -> result.append("§4");
-                    case "dark_purple" -> result.append("§5");
-                    case "gold" -> result.append("§6");
-                    case "gray" -> result.append("§7");
-                    case "dark_gray" -> result.append("§8");
-                    case "blue" -> result.append("§9");
-                    case "green" -> result.append("§a");
-                    case "aqua" -> result.append("§b");
-                    case "red" -> result.append("§c");
-                    case "light_purple" -> result.append("§d");
-                    case "yellow" -> result.append("§e");
-                    case "white" -> result.append("§f");
-                }
-                index = tagMatcher.end();
-                continue;
-            }
-
-            // Carácter normal
-            char c = text.charAt(index);
-            StringBuilder prefix = new StringBuilder();
-            for (char s : activeStyles) prefix.append('§').append(s);
-            result.append(prefix).append(c);
-            index++;
+            matcher.appendReplacement(buffer,
+                    Matcher.quoteReplacement(buildGradient(content, colorList)));
         }
+        matcher.appendTail(buffer);
 
-        return result.toString();
+        return buffer.toString();
     }
 
-    private static String buildGradient(String content, String colorList, Deque<Character> activeStyles) {
-        // Separar colores
-        String[] hexColors = colorList.split(":");
-        List<int[]> rgbColors = new ArrayList<>();
-        for (String hex : hexColors) {
-            int c = Integer.parseInt(hex.replace("#", ""), 16);
-            rgbColors.add(new int[]{(c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF});
+    private static String buildGradient(String content, String colorList) {
+        String[] hexList = colorList.split(":");
+
+        List<int[]> colors = new ArrayList<>();
+        for (String hex : hexList) {
+            int c = Integer.parseInt(hex.substring(1), 16);
+            colors.add(new int[]{
+                    (c >> 16) & 0xFF,
+                    (c >> 8) & 0xFF,
+                    c & 0xFF
+            });
         }
 
-        StringBuilder result = new StringBuilder();
-        List<Character> styles = new ArrayList<>(activeStyles);
-        int length = content.length();
+        StringBuilder out = new StringBuilder();
+        int len = content.length();
 
-        for (int i = 0; i < length; i++) {
-            // Determinar en qué segmento de color estamos
-            double pos = (double) i / (length - 1) * (rgbColors.size() - 1);
-            int segment = (int) Math.floor(pos);
-            double ratio = pos - segment;
+        for (int i = 0; i < len; i++) {
+            double progress = (double) i / (len - 1) * (colors.size() - 1);
+            int index = (int) progress;
+            double ratio = progress - index;
 
-            int[] start = rgbColors.get(segment);
-            int[] end = rgbColors.get(Math.min(segment + 1, rgbColors.size() - 1));
+            int[] start = colors.get(index);
+            int[] end = colors.get(Math.min(index + 1, colors.size() - 1));
 
             int r = (int) (start[0] + (end[0] - start[0]) * ratio);
             int g = (int) (start[1] + (end[1] - start[1]) * ratio);
             int b = (int) (start[2] + (end[2] - start[2]) * ratio);
 
-            String hexCode = String.format("%02X%02X%02X", r, g, b);
-
-            // Aplicar primero el color, luego los estilos activos
-            StringBuilder prefix = new StringBuilder(toMinecraftHex(hexCode));
-            for (char s : styles) prefix.append('§').append(s);
-
-            result.append(prefix).append(content.charAt(i));
+            String hex = String.format("%02X%02X%02X", r, g, b);
+            out.append(toHex(hex)).append(content.charAt(i));
         }
 
-        return result.toString();
+        return out.toString();
     }
 
-    private static String toMinecraftHex(String hex) {
+    // ============================================================
+    // TAGS <b>, </b>, <red>, <reset>
+    // ============================================================
+    private static String applyStyleTags(String text) {
+
+        return STYLE_PATTERN.matcher(text).replaceAll(m -> {
+            String tag = m.group(1).toLowerCase();
+
+            return switch (tag) {
+                case "b" -> "§l";
+                case "/b" -> "§r"; // reset style
+                case "i" -> "§o";
+                case "/i" -> "§r";
+                case "u" -> "§n";
+                case "/u" -> "§r";
+                case "st" -> "§m";
+                case "/st" -> "§r";
+                case "obf" -> "§k";
+                case "/obf" -> "§r";
+
+                case "black" -> "§0";
+                case "dark_blue" -> "§1";
+                case "dark_green" -> "§2";
+                case "dark_aqua" -> "§3";
+                case "dark_red" -> "§4";
+                case "dark_purple" -> "§5";
+                case "gold" -> "§6";
+                case "gray" -> "§7";
+                case "dark_gray" -> "§8";
+                case "blue" -> "§9";
+                case "green" -> "§a";
+                case "aqua" -> "§b";
+                case "red" -> "§c";
+                case "light_purple" -> "§d";
+                case "yellow" -> "§e";
+                case "white" -> "§f";
+
+                case "reset" -> "§r";
+
+                default -> "";
+            };
+        });
+    }
+
+    // ============================================================
+    // HEX FORMATTER
+    // ============================================================
+    private static String toHex(String hex) {
         return "§x§" + hex.charAt(0) + "§" + hex.charAt(1) +
                 "§" + hex.charAt(2) + "§" + hex.charAt(3) +
                 "§" + hex.charAt(4) + "§" + hex.charAt(5);

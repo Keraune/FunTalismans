@@ -11,6 +11,8 @@ import org.bukkit.block.BlockState;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.*;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
 
 import java.util.*;
 
@@ -45,6 +47,8 @@ public class TalismanManager {
 
         lastReloadUpdatedPlayers = updateAllPlayerItems(oldTalismans);
         updateAllEnderChests();
+        updateAllPlayerCursorsAndOpenInventories();
+        updateTalismanContainers();
 
         return lastReloadUpdatedPlayers;
     }
@@ -316,20 +320,57 @@ public class TalismanManager {
 
 
     // Actualizar un solo itemStack (por ejemplo cuando se recoge del suelo)
+// ESTE MÉTODO DEBE SER USADO SOLO PARA ITEMS QUE NO ESTÁN SIENDO INTERACTUADOS
     public void updateItemStack(ItemStack stack) {
         if (stack == null || stack.getType().isAir()) return;
 
         Talisman t = getFromItem(stack);
         if (t != null) {
+            // Crear el nuevo item con el talismán actualizado
             int amount = stack.getAmount();
             ItemStack newItem = TalismanItemBuilder.build(t);
             newItem.setAmount(amount);
 
-            // Aplicar valores al ItemStack original
-            stack.setType(newItem.getType());
-            stack.setItemMeta(newItem.getItemMeta());
+            // Transferir la metadata al item original
+            // Esto evita crear un nuevo objeto
+            stack.setItemMeta(newItem.getItemMeta().clone());
+
+            // Solo cambiar el type si es diferente
+            if (stack.getType() != newItem.getType()) {
+                stack.setType(newItem.getType());
+            }
+
+            // Asegurarse de que la cantidad se mantenga
             stack.setAmount(amount);
         }
+    }
+
+    // NUEVO MÉTODO: Actualizar itemStack de forma segura (para uso en eventos)
+    public ItemStack updateItemStackSafely(ItemStack original) {
+        if (original == null || original.getType().isAir()) return original;
+
+        Talisman t = getFromItem(original);
+        if (t != null) {
+            // Crear una COPIA del item actualizado
+            int amount = original.getAmount();
+            ItemStack updated = TalismanItemBuilder.build(t);
+            updated.setAmount(amount);
+            return updated;
+        }
+
+        return original; // Retornar original si no es talismán
+    }
+
+    // Método auxiliar para verificar si un item ya está actualizado
+    private boolean isUpdated(ItemStack stack, Talisman talisman) {
+        if (!stack.hasItemMeta()) return false;
+
+        ItemMeta meta = stack.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        // Verificar si ya tiene la metadata correcta
+        String currentId = pdc.get(plugin.getConfigManager().talismansKey(), plugin.getConfigManager().stringType());
+        return talisman.getId().equals(currentId);
     }
 
     // Actualizar todos los enderchests de los jugadores en línea
@@ -350,5 +391,76 @@ public class TalismanManager {
                 }
             }
         }
+    }
+
+    // Actualizar cursores e inventarios abiertos de todos los jugadores
+    public void updateAllPlayerCursorsAndOpenInventories() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player == null || !player.isOnline()) continue;
+
+            try {
+                // ==========================================
+                // 1. ACTUALIZAR CURSOR - USAR MÉTODO SEGURO
+                // ==========================================
+                ItemStack cursor = player.getItemOnCursor();
+                if (cursor != null && !cursor.getType().isAir() && getFromItem(cursor) != null) {
+                    ItemStack updated = updateItemStackSafely(cursor);
+                    // IMPORTANTE: Comparar si realmente cambió algo
+                    if (!areItemsEqual(cursor, updated)) {
+                        player.setItemOnCursor(updated);
+                    }
+                }
+
+                // ==========================================
+                // 2. ACTUALIZAR INVENTARIOS ABIERTOS
+                // ==========================================
+                InventoryView view = player.getOpenInventory();
+                if (view != null) {
+                    // Actualizar inventario superior (crafting, anvil, etc.)
+                    Inventory top = view.getTopInventory();
+                    if (top != null) {
+                        updateInventoryTalismansSafely(top);
+                    }
+
+                    // Actualizar inventario inferior (inventario del jugador en la UI)
+                    Inventory bottom = view.getBottomInventory();
+                    if (bottom != null) {
+                        updateInventoryTalismansSafely(bottom);
+                    }
+                }
+
+            } catch (Exception e) {
+                plugin.getLogger().warning("Error updating cursor/open inv for " +
+                        player.getName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    // Método optimizado para actualizar inventarios de forma segura
+    private void updateInventoryTalismansSafely(Inventory inv) {
+        if (inv == null) return;
+
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack item = inv.getItem(i);
+            if (item != null && !item.getType().isAir()) {
+                Talisman t = getFromItem(item);
+                if (t != null) {
+                    ItemStack updated = updateItemStackSafely(item);
+                    if (!areItemsEqual(item, updated)) {
+                        inv.setItem(i, updated);
+                    }
+                }
+            }
+        }
+    }
+
+    // Método para comparar si dos items son iguales (excepto cantidad)
+    private boolean areItemsEqual(ItemStack a, ItemStack b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+
+        return a.getType() == b.getType() &&
+                a.hasItemMeta() == b.hasItemMeta() &&
+                (!a.hasItemMeta() || a.getItemMeta().equals(b.getItemMeta()));
     }
 }

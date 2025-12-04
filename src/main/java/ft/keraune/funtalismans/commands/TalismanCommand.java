@@ -23,6 +23,7 @@ public class TalismanCommand implements CommandExecutor {
         if (args.length == 0) {
             send(sender, plugin.getMessageManager().getMessage("usage_give_cmd"));
             send(sender, plugin.getMessageManager().getMessage("usage_reload"));
+            send(sender, "§e/talisman forceupdate §7- Forzar actualización de talismanes");
             return true;
         }
 
@@ -98,6 +99,30 @@ public class TalismanCommand implements CommandExecutor {
 
             send(sender, plugin.getMessageManager().getMessage("give_success",
                     Map.of("talisman", id, "player", target.getName())));
+            return true;
+        }
+
+        // ----------------------
+        // /talisman forceupdate (NUEVO)
+        // ----------------------
+        if (args[0].equalsIgnoreCase("forceupdate")) {
+            if (!sender.hasPermission("funtalismans.reload")) {
+                send(sender, plugin.getMessageManager().getMessage("no_permission"));
+                return true;
+            }
+
+            send(sender, "§aForzando actualización de todos los talismanes...");
+            plugin.getTalismanManager().forceUpdateAll();
+
+            // Actualizar todo
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                plugin.getTalismanManager().updateInventoryTalismansQuietly(player.getInventory());
+                plugin.getTalismanManager().updateInventoryTalismansQuietly(player.getEnderChest());
+            }
+
+            plugin.getTalismanManager().updateTalismanContainers();
+
+            send(sender, "§a¡Actualización forzada completada!");
             return true;
         }
 

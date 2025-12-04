@@ -13,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 
@@ -21,6 +22,14 @@ public class TalismanManager {
     private final FunTalismans plugin;
     private Map<String, Talisman> talismans = new HashMap<>();
     private int lastReloadUpdatedPlayers = 0;
+
+    // NUEVO: Cache de items de talismanes
+    private final Map<String, ItemStack> talismanItemCache = new HashMap<>();
+    private boolean cacheNeedsRefresh = true;
+
+    // NUEVO: Sistema de versiones para detectar cambios
+    private int configVersion = 0;
+    private boolean forceUpdateMode = false;
 
     public TalismanManager(FunTalismans plugin) {
         this.plugin = plugin;
@@ -35,6 +44,15 @@ public class TalismanManager {
             normalized.put(entry.getKey().toLowerCase(), entry.getValue());
         }
         talismans = normalized;
+
+        // Marcar cache como obsoleto
+        cacheNeedsRefresh = true;
+
+        // NUEVO: Incrementar versión cada vez que se cargan talismanes
+        configVersion++;
+
+        // Refrescar cache inmediatamente
+        refreshTalismanCache();
     }
 
     public int reloadTalismans() {
@@ -44,6 +62,14 @@ public class TalismanManager {
         loadTalismans();
 
         SkullUtil.resetWarning();
+
+        // NUEVO: Forzar actualización después de reload
+        forceUpdateMode = true;
+
+        // Desactivar modo forzado después de un tiempo razonable
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            forceUpdateMode = false;
+        }, 600L); // 30 segundos (600 ticks)
 
         lastReloadUpdatedPlayers = updateAllPlayerItems(oldTalismans);
         updateAllEnderChests();
@@ -74,7 +100,7 @@ public class TalismanManager {
         PlayerInventory inventory = player.getInventory();
         boolean updated = false;
 
-        // Actualizar inventario principal con verificaciones mejoradas
+        // Actualizar inventario principal
         for (int i = 0; i < inventory.getSize(); i++) {
             ItemStack item = inventory.getItem(i);
             if (item != null && !item.getType().isAir()) {
@@ -82,18 +108,25 @@ public class TalismanManager {
                 if (oldTalisman != null) {
                     Talisman newTalisman = getTalisman(oldTalisman.getId());
                     if (newTalisman != null) {
-                        // MANTENER LA CANTIDAD ORIGINAL del item
-                        int originalAmount = item.getAmount();
-                        ItemStack newItem = TalismanItemBuilder.build(newTalisman);
-                        newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
-                        inventory.setItem(i, newItem);
-                        updated = true;
+                        // IMPORTANTE: Después de reload SIEMPRE actualizar
+                        if (forceUpdateMode || needsUpdate(item)) {
+                            int originalAmount = item.getAmount();
+                            ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
+                            if (newItem == null) {
+                                newItem = TalismanItemBuilder.build(newTalisman);
+                                // NUEVO: Agregar versión al item
+                                setTalismanVersion(newItem, configVersion);
+                            }
+                            newItem.setAmount(originalAmount);
+                            inventory.setItem(i, newItem);
+                            updated = true;
+                        }
                     }
                 }
             }
         }
 
-        // Actualizar armadura con verificaciones mejoradas
+        // Actualizar armadura
         ItemStack[] armor = inventory.getArmorContents();
         boolean armorUpdated = false;
         for (int i = 0; i < armor.length; i++) {
@@ -103,12 +136,17 @@ public class TalismanManager {
                 if (oldTalisman != null) {
                     Talisman newTalisman = getTalisman(oldTalisman.getId());
                     if (newTalisman != null) {
-                        // MANTENER LA CANTIDAD ORIGINAL del item de armadura
-                        int originalAmount = item.getAmount();
-                        ItemStack newItem = TalismanItemBuilder.build(newTalisman);
-                        newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
-                        armor[i] = newItem;
-                        armorUpdated = true;
+                        if (forceUpdateMode || needsUpdate(item)) {
+                            int originalAmount = item.getAmount();
+                            ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
+                            if (newItem == null) {
+                                newItem = TalismanItemBuilder.build(newTalisman);
+                                setTalismanVersion(newItem, configVersion);
+                            }
+                            newItem.setAmount(originalAmount);
+                            armor[i] = newItem;
+                            armorUpdated = true;
+                        }
                     }
                 }
             }
@@ -118,36 +156,45 @@ public class TalismanManager {
             updated = true;
         }
 
-        // Actualizar mano principal con verificaciones mejoradas
+        // Actualizar manos
         ItemStack mainHand = inventory.getItemInMainHand();
         if (mainHand != null && !mainHand.getType().isAir()) {
             Talisman oldTalisman = getFromItem(mainHand);
             if (oldTalisman != null) {
                 Talisman newTalisman = getTalisman(oldTalisman.getId());
                 if (newTalisman != null) {
-                    // MANTENER LA CANTIDAD ORIGINAL del item en mano
-                    int originalAmount = mainHand.getAmount();
-                    ItemStack newItem = TalismanItemBuilder.build(newTalisman);
-                    newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
-                    inventory.setItemInMainHand(newItem);
-                    updated = true;
+                    if (forceUpdateMode || needsUpdate(mainHand)) {
+                        int originalAmount = mainHand.getAmount();
+                        ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
+                        if (newItem == null) {
+                            newItem = TalismanItemBuilder.build(newTalisman);
+                            setTalismanVersion(newItem, configVersion);
+                        }
+                        newItem.setAmount(originalAmount);
+                        inventory.setItemInMainHand(newItem);
+                        updated = true;
+                    }
                 }
             }
         }
 
-        // Actualizar mano secundaria con verificaciones mejoradas
         ItemStack offHand = inventory.getItemInOffHand();
         if (offHand != null && !offHand.getType().isAir()) {
             Talisman oldTalisman = getFromItem(offHand);
             if (oldTalisman != null) {
                 Talisman newTalisman = getTalisman(oldTalisman.getId());
                 if (newTalisman != null) {
-                    // MANTENER LA CANTIDAD ORIGINAL del item en offhand
-                    int originalAmount = offHand.getAmount();
-                    ItemStack newItem = TalismanItemBuilder.build(newTalisman);
-                    newItem.setAmount(originalAmount); // ← PRESERVAR CANTIDAD
-                    inventory.setItemInOffHand(newItem);
-                    updated = true;
+                    if (forceUpdateMode || needsUpdate(offHand)) {
+                        int originalAmount = offHand.getAmount();
+                        ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
+                        if (newItem == null) {
+                            newItem = TalismanItemBuilder.build(newTalisman);
+                            setTalismanVersion(newItem, configVersion);
+                        }
+                        newItem.setAmount(originalAmount);
+                        inventory.setItemInOffHand(newItem);
+                        updated = true;
+                    }
                 }
             }
         }
@@ -183,6 +230,112 @@ public class TalismanManager {
 
         String id = pdc.get(plugin.getConfigManager().talismansKey(), plugin.getConfigManager().stringType());
         return getTalisman(id);
+    }
+
+    // NUEVO: Verificar versión del talismán
+    private int getTalismanVersion(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return -1;
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        // Usar una clave diferente para la versión
+        return pdc.getOrDefault(
+                new org.bukkit.NamespacedKey(plugin, "talisman_version"),
+                PersistentDataType.INTEGER,
+                -1
+        );
+    }
+
+    // NUEVO: Establecer versión del talismán
+    private void setTalismanVersion(ItemStack item, int version) {
+        if (item == null || !item.hasItemMeta()) return;
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        pdc.set(
+                new org.bukkit.NamespacedKey(plugin, "talisman_version"),
+                PersistentDataType.INTEGER,
+                version
+        );
+
+        item.setItemMeta(meta);
+    }
+
+    // NUEVO: Verificar si un item necesita actualización
+    public boolean needsUpdate(ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) {
+            return false;
+        }
+
+        Talisman talisman = getFromItem(item);
+        if (talisman == null) {
+            return false; // No es un talismán
+        }
+
+        // NUEVO: Verificar versión primero
+        int itemVersion = getTalismanVersion(item);
+        if (itemVersion < configVersion) {
+            return true; // Versión antigua, necesita actualización
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        String currentId = pdc.get(plugin.getConfigManager().talismansKey(),
+                plugin.getConfigManager().stringType());
+
+        // Si no tiene ID o el ID no coincide
+        if (currentId == null || !currentId.equalsIgnoreCase(talisman.getId())) {
+            return true;
+        }
+
+        // Obtener el item esperado para este talismán
+        ItemStack expectedItem = getCachedTalismanItem(talisman.getId());
+        if (expectedItem == null) {
+            expectedItem = TalismanItemBuilder.build(talisman);
+            setTalismanVersion(expectedItem, configVersion);
+        }
+
+        // Comparar tipo de material
+        if (item.getType() != expectedItem.getType()) {
+            return true;
+        }
+
+        // Para custom heads, verificar también el display name
+        if (expectedItem.hasItemMeta() && expectedItem.getItemMeta().hasDisplayName()) {
+            String expectedName = expectedItem.getItemMeta().getDisplayName();
+            if (meta.hasDisplayName()) {
+                if (!meta.getDisplayName().equals(expectedName)) {
+                    return true;
+                }
+            } else {
+                return true; // Falta el display name
+            }
+        }
+
+        return false; // No necesita actualización
+    }
+
+    // NUEVO: Obtener item de talismán desde cache
+    private ItemStack getCachedTalismanItem(String id) {
+        if (cacheNeedsRefresh) {
+            refreshTalismanCache();
+        }
+        return talismanItemCache.get(id.toLowerCase());
+    }
+
+    // NUEVO: Refrescar cache con versión
+    private void refreshTalismanCache() {
+        talismanItemCache.clear();
+        for (Map.Entry<String, Talisman> entry : talismans.entrySet()) {
+            ItemStack item = TalismanItemBuilder.build(entry.getValue());
+            // Agregar versión actual a todos los items del cache
+            setTalismanVersion(item, configVersion);
+            talismanItemCache.put(entry.getKey().toLowerCase(), item);
+        }
+        cacheNeedsRefresh = false;
     }
 
     public boolean isItemInSlot(Player p, EquipmentSlot slot, Talisman t) {
@@ -257,44 +410,58 @@ public class TalismanManager {
 
     public void updateTalismanContainers() {
         for (World world : Bukkit.getWorlds()) {
-
-            // ============================
-            // ACTUALIZAR ITEMS TIRADOS
-            // ============================
+            // Actualizar items tirados
             for (Item entityItem : world.getEntitiesByClass(Item.class)) {
                 ItemStack stack = entityItem.getItemStack();
                 Talisman t = getFromItem(stack);
                 if (t != null) {
-                    int amount = stack.getAmount();
-                    ItemStack newItem = TalismanItemBuilder.build(t);
-                    newItem.setAmount(amount);
-                    entityItem.setItemStack(newItem);
+                    if (forceUpdateMode || needsUpdate(stack)) {
+                        int amount = stack.getAmount();
+                        ItemStack newItem = getCachedTalismanItem(t.getId());
+                        if (newItem == null) {
+                            newItem = TalismanItemBuilder.build(t);
+                            setTalismanVersion(newItem, configVersion);
+                        }
+                        newItem.setAmount(amount);
+                        entityItem.setItemStack(newItem);
+                    }
                 }
             }
 
-            // ============================
-            // ACTUALIZAR CONTENEDORES
-            // ============================
+            // Actualizar contenedores
             for (Chunk chunk : world.getLoadedChunks()) {
                 for (BlockState state : chunk.getTileEntities()) {
-
                     if (state instanceof InventoryHolder holder) {
                         Inventory inv = holder.getInventory();
+                        updateInventoryTalismansQuietly(inv);
+                    }
+                }
+            }
+        }
+    }
 
-                        for (int i = 0; i < inv.getSize(); i++) {
-                            ItemStack item = inv.getItem(i);
-                            if (item == null || item.getType().isAir()) continue;
+    // NUEVO: Método optimizado para actualizar inventarios sin parpadeo
+    public void updateInventoryTalismansQuietly(Inventory inv) {
+        if (inv == null) return;
 
-                            Talisman talisman = getFromItem(item);
-                            if (talisman != null) {
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack item = inv.getItem(i);
+            if (item != null && !item.getType().isAir()) {
+                Talisman t = getFromItem(item);
+                if (t != null) {
+                    // IMPORTANTE: Verificar forceUpdateMode también
+                    if (forceUpdateMode || needsUpdate(item)) {
+                        int amount = item.getAmount();
+                        ItemStack newItem = getCachedTalismanItem(t.getId());
+                        if (newItem == null) {
+                            newItem = TalismanItemBuilder.build(t);
+                            setTalismanVersion(newItem, configVersion);
+                        }
+                        newItem.setAmount(amount);
 
-                                int amount = item.getAmount();
-
-                                ItemStack newItem = TalismanItemBuilder.build(talisman);
-                                newItem.setAmount(amount);
-
-                                inv.setItem(i, newItem);
-                            }
+                        // Solo setear si realmente cambió algo
+                        if (!areItemsEqual(item, newItem)) {
+                            inv.setItem(i, newItem);
                         }
                     }
                 }
@@ -302,46 +469,35 @@ public class TalismanManager {
         }
     }
 
-    // Actualizar un inventario completo (cofres, shulkers, barriles, etc)
+    // Mantener compatibilidad
     public void updateInventoryTalismans(Inventory inv) {
-        for (int i = 0; i < inv.getSize(); i++) {
-            ItemStack item = inv.getItem(i);
-            if (item == null || item.getType().isAir()) continue;
-
-            Talisman t = getFromItem(item);
-            if (t != null) {
-                int amount = item.getAmount();
-                ItemStack newItem = TalismanItemBuilder.build(t);
-                newItem.setAmount(amount);
-                inv.setItem(i, newItem);
-            }
-        }
+        updateInventoryTalismansQuietly(inv);
     }
 
-
-    // Actualizar un solo itemStack (por ejemplo cuando se recoge del suelo)
-// ESTE MÉTODO DEBE SER USADO SOLO PARA ITEMS QUE NO ESTÁN SIENDO INTERACTUADOS
+    // Actualizar un solo itemStack
     public void updateItemStack(ItemStack stack) {
         if (stack == null || stack.getType().isAir()) return;
 
         Talisman t = getFromItem(stack);
         if (t != null) {
-            // Crear el nuevo item con el talismán actualizado
-            int amount = stack.getAmount();
-            ItemStack newItem = TalismanItemBuilder.build(t);
-            newItem.setAmount(amount);
+            if (forceUpdateMode || needsUpdate(stack)) {
+                int amount = stack.getAmount();
+                ItemStack newItem = getCachedTalismanItem(t.getId());
+                if (newItem == null) {
+                    newItem = TalismanItemBuilder.build(t);
+                    setTalismanVersion(newItem, configVersion);
+                }
+                newItem.setAmount(amount);
 
-            // Transferir la metadata al item original
-            // Esto evita crear un nuevo objeto
-            stack.setItemMeta(newItem.getItemMeta().clone());
+                // Transferir metadata
+                stack.setItemMeta(newItem.getItemMeta().clone());
 
-            // Solo cambiar el type si es diferente
-            if (stack.getType() != newItem.getType()) {
-                stack.setType(newItem.getType());
+                if (stack.getType() != newItem.getType()) {
+                    stack.setType(newItem.getType());
+                }
+
+                stack.setAmount(amount);
             }
-
-            // Asegurarse de que la cantidad se mantenga
-            stack.setAmount(amount);
         }
     }
 
@@ -351,14 +507,19 @@ public class TalismanManager {
 
         Talisman t = getFromItem(original);
         if (t != null) {
-            // Crear una COPIA del item actualizado
-            int amount = original.getAmount();
-            ItemStack updated = TalismanItemBuilder.build(t);
-            updated.setAmount(amount);
-            return updated;
+            if (forceUpdateMode || needsUpdate(original)) {
+                int amount = original.getAmount();
+                ItemStack updated = getCachedTalismanItem(t.getId());
+                if (updated == null) {
+                    updated = TalismanItemBuilder.build(t);
+                    setTalismanVersion(updated, configVersion);
+                }
+                updated.setAmount(amount);
+                return updated;
+            }
         }
 
-        return original; // Retornar original si no es talismán
+        return original;
     }
 
     // Método auxiliar para verificar si un item ya está actualizado
@@ -373,59 +534,42 @@ public class TalismanManager {
         return talisman.getId().equals(currentId);
     }
 
-    // Actualizar todos los enderchests de los jugadores en línea
+    // MODIFICADO: Actualizar todos los enderchests
     public void updateAllEnderChests() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             Inventory ender = player.getEnderChest();
-
-            for (int i = 0; i < ender.getSize(); i++) {
-                ItemStack item = ender.getItem(i);
-                if (item == null || item.getType().isAir()) continue;
-
-                Talisman t = getFromItem(item);
-                if (t != null) {
-                    int amount = item.getAmount();
-                    ItemStack newItem = TalismanItemBuilder.build(t);
-                    newItem.setAmount(amount);
-                    ender.setItem(i, newItem);
-                }
-            }
+            updateInventoryTalismansQuietly(ender);
         }
     }
 
-    // Actualizar cursores e inventarios abiertos de todos los jugadores
+    // MODIFICADO: Actualizar cursores e inventarios abiertos
     public void updateAllPlayerCursorsAndOpenInventories() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player == null || !player.isOnline()) continue;
 
             try {
-                // ==========================================
-                // 1. ACTUALIZAR CURSOR - USAR MÉTODO SEGURO
-                // ==========================================
+                // Actualizar cursor
                 ItemStack cursor = player.getItemOnCursor();
                 if (cursor != null && !cursor.getType().isAir() && getFromItem(cursor) != null) {
-                    ItemStack updated = updateItemStackSafely(cursor);
-                    // IMPORTANTE: Comparar si realmente cambió algo
-                    if (!areItemsEqual(cursor, updated)) {
-                        player.setItemOnCursor(updated);
+                    if (forceUpdateMode || needsUpdate(cursor)) {
+                        ItemStack updated = updateItemStackSafely(cursor);
+                        if (!areItemsEqual(cursor, updated)) {
+                            player.setItemOnCursor(updated);
+                        }
                     }
                 }
 
-                // ==========================================
-                // 2. ACTUALIZAR INVENTARIOS ABIERTOS
-                // ==========================================
+                // Actualizar inventarios abiertos
                 InventoryView view = player.getOpenInventory();
                 if (view != null) {
-                    // Actualizar inventario superior (crafting, anvil, etc.)
                     Inventory top = view.getTopInventory();
                     if (top != null) {
-                        updateInventoryTalismansSafely(top);
+                        updateInventoryTalismansQuietly(top);
                     }
 
-                    // Actualizar inventario inferior (inventario del jugador en la UI)
                     Inventory bottom = view.getBottomInventory();
                     if (bottom != null) {
-                        updateInventoryTalismansSafely(bottom);
+                        updateInventoryTalismansQuietly(bottom);
                     }
                 }
 
@@ -445,9 +589,12 @@ public class TalismanManager {
             if (item != null && !item.getType().isAir()) {
                 Talisman t = getFromItem(item);
                 if (t != null) {
-                    ItemStack updated = updateItemStackSafely(item);
-                    if (!areItemsEqual(item, updated)) {
-                        inv.setItem(i, updated);
+                    // Solo actualizar si es necesario
+                    if (forceUpdateMode || needsUpdate(item)) {
+                        ItemStack updated = updateItemStackSafely(item);
+                        if (!areItemsEqual(item, updated)) {
+                            inv.setItem(i, updated);
+                        }
                     }
                 }
             }
@@ -455,12 +602,54 @@ public class TalismanManager {
     }
 
     // Método para comparar si dos items son iguales (excepto cantidad)
-    private boolean areItemsEqual(ItemStack a, ItemStack b) {
+    public boolean areItemsEqual(ItemStack a, ItemStack b) {
         if (a == b) return true;
         if (a == null || b == null) return false;
 
         return a.getType() == b.getType() &&
                 a.hasItemMeta() == b.hasItemMeta() &&
                 (!a.hasItemMeta() || a.getItemMeta().equals(b.getItemMeta()));
+    }
+
+    // NUEVO: Método para comparar si dos items son visualmente iguales (para custom heads)
+    public boolean areItemsVisuallyEqual(ItemStack a, ItemStack b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        if (a.getType() != b.getType()) return false;
+
+        // Para custom heads, la metadata debe ser idéntica
+        if (!a.hasItemMeta() || !b.hasItemMeta()) {
+            return a.hasItemMeta() == b.hasItemMeta();
+        }
+
+        ItemMeta metaA = a.getItemMeta();
+        ItemMeta metaB = b.getItemMeta();
+
+        // Comparar display name
+        if (metaA.hasDisplayName() != metaB.hasDisplayName()) return false;
+        if (metaA.hasDisplayName() && !metaA.getDisplayName().equals(metaB.getDisplayName())) return false;
+
+        // Comparar lore
+        if (metaA.hasLore() != metaB.hasLore()) return false;
+        if (metaA.hasLore() && !metaA.getLore().equals(metaB.getLore())) return false;
+
+        // Comparar custom model data
+        if (metaA.hasCustomModelData() != metaB.hasCustomModelData()) return false;
+        if (metaA.hasCustomModelData() && metaA.getCustomModelData() != metaB.getCustomModelData()) return false;
+
+        return true;
+    }
+
+    // NUEVO: Verificar si estamos en modo force update
+    public boolean isForceUpdateMode() {
+        return forceUpdateMode;
+    }
+
+    // NUEVO: Método para forzar actualización manual
+    public void forceUpdateAll() {
+        forceUpdateMode = true;
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            forceUpdateMode = false;
+        }, 600L);
     }
 }

@@ -18,19 +18,27 @@ public class TalismanTabCompleter implements TabCompleter {
         // /talisman <subcommand>
         if (args.length == 1) {
             if (sender.hasPermission("funtalismans.give")) list.add("give");
-            if (sender.hasPermission("funtalismans.reload")) list.add("reload");
+            if (sender.hasPermission("funtalismans.reload")) {
+                list.add("reload");
+                list.add("forceupdate"); // NUEVO: agregar forceupdate
+            }
             return filter(list, args[0]);
         }
 
         // /talisman give <player>
         if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
-            return null;
+            return null; // Dejar que Bukkit complete nombres de jugadores
         }
 
         // /talisman give <player> <id>
         if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
             list.addAll(FunTalismans.getInstance().getTalismanManager().getTalismanIds());
             return filter(list, args[2]);
+        }
+
+        // /talisman forceupdate (no necesita más argumentos)
+        if (args.length == 2 && args[0].equalsIgnoreCase("forceupdate")) {
+            return list; // Lista vacía, no más argumentos
         }
 
         return list;

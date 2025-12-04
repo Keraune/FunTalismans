@@ -27,8 +27,6 @@ public class TalismanManager {
     private final Map<String, ItemStack> talismanItemCache = new HashMap<>();
     private boolean cacheNeedsRefresh = true;
 
-    // NUEVO: Sistema de versiones para detectar cambios
-    private int configVersion = 0;
     private boolean forceUpdateMode = false;
 
     public TalismanManager(FunTalismans plugin) {
@@ -47,9 +45,6 @@ public class TalismanManager {
 
         // Marcar cache como obsoleto
         cacheNeedsRefresh = true;
-
-        // NUEVO: Incrementar versión cada vez que se cargan talismanes
-        configVersion++;
 
         // Refrescar cache inmediatamente
         refreshTalismanCache();
@@ -114,8 +109,6 @@ public class TalismanManager {
                             ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
                             if (newItem == null) {
                                 newItem = TalismanItemBuilder.build(newTalisman);
-                                // NUEVO: Agregar versión al item
-                                setTalismanVersion(newItem, configVersion);
                             }
                             newItem.setAmount(originalAmount);
                             inventory.setItem(i, newItem);
@@ -141,7 +134,6 @@ public class TalismanManager {
                             ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
                             if (newItem == null) {
                                 newItem = TalismanItemBuilder.build(newTalisman);
-                                setTalismanVersion(newItem, configVersion);
                             }
                             newItem.setAmount(originalAmount);
                             armor[i] = newItem;
@@ -168,7 +160,6 @@ public class TalismanManager {
                         ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
                         if (newItem == null) {
                             newItem = TalismanItemBuilder.build(newTalisman);
-                            setTalismanVersion(newItem, configVersion);
                         }
                         newItem.setAmount(originalAmount);
                         inventory.setItemInMainHand(newItem);
@@ -189,7 +180,6 @@ public class TalismanManager {
                         ItemStack newItem = getCachedTalismanItem(newTalisman.getId());
                         if (newItem == null) {
                             newItem = TalismanItemBuilder.build(newTalisman);
-                            setTalismanVersion(newItem, configVersion);
                         }
                         newItem.setAmount(originalAmount);
                         inventory.setItemInOffHand(newItem);
@@ -247,22 +237,6 @@ public class TalismanManager {
         );
     }
 
-    // NUEVO: Establecer versión del talismán
-    private void setTalismanVersion(ItemStack item, int version) {
-        if (item == null || !item.hasItemMeta()) return;
-
-        ItemMeta meta = item.getItemMeta();
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-
-        pdc.set(
-                new org.bukkit.NamespacedKey(plugin, "talisman_version"),
-                PersistentDataType.INTEGER,
-                version
-        );
-
-        item.setItemMeta(meta);
-    }
-
     // NUEVO: Verificar si un item necesita actualización
     public boolean needsUpdate(ItemStack item) {
         if (item == null || item.getType().isAir() || !item.hasItemMeta()) {
@@ -272,12 +246,6 @@ public class TalismanManager {
         Talisman talisman = getFromItem(item);
         if (talisman == null) {
             return false; // No es un talismán
-        }
-
-        // NUEVO: Verificar versión primero
-        int itemVersion = getTalismanVersion(item);
-        if (itemVersion < configVersion) {
-            return true; // Versión antigua, necesita actualización
         }
 
         ItemMeta meta = item.getItemMeta();
@@ -295,7 +263,6 @@ public class TalismanManager {
         ItemStack expectedItem = getCachedTalismanItem(talisman.getId());
         if (expectedItem == null) {
             expectedItem = TalismanItemBuilder.build(talisman);
-            setTalismanVersion(expectedItem, configVersion);
         }
 
         // Comparar tipo de material
@@ -331,8 +298,6 @@ public class TalismanManager {
         talismanItemCache.clear();
         for (Map.Entry<String, Talisman> entry : talismans.entrySet()) {
             ItemStack item = TalismanItemBuilder.build(entry.getValue());
-            // Agregar versión actual a todos los items del cache
-            setTalismanVersion(item, configVersion);
             talismanItemCache.put(entry.getKey().toLowerCase(), item);
         }
         cacheNeedsRefresh = false;
@@ -420,7 +385,6 @@ public class TalismanManager {
                         ItemStack newItem = getCachedTalismanItem(t.getId());
                         if (newItem == null) {
                             newItem = TalismanItemBuilder.build(t);
-                            setTalismanVersion(newItem, configVersion);
                         }
                         newItem.setAmount(amount);
                         entityItem.setItemStack(newItem);
@@ -455,7 +419,6 @@ public class TalismanManager {
                         ItemStack newItem = getCachedTalismanItem(t.getId());
                         if (newItem == null) {
                             newItem = TalismanItemBuilder.build(t);
-                            setTalismanVersion(newItem, configVersion);
                         }
                         newItem.setAmount(amount);
 
@@ -485,7 +448,6 @@ public class TalismanManager {
                 ItemStack newItem = getCachedTalismanItem(t.getId());
                 if (newItem == null) {
                     newItem = TalismanItemBuilder.build(t);
-                    setTalismanVersion(newItem, configVersion);
                 }
                 newItem.setAmount(amount);
 
@@ -512,7 +474,6 @@ public class TalismanManager {
                 ItemStack updated = getCachedTalismanItem(t.getId());
                 if (updated == null) {
                     updated = TalismanItemBuilder.build(t);
-                    setTalismanVersion(updated, configVersion);
                 }
                 updated.setAmount(amount);
                 return updated;

@@ -24,7 +24,6 @@ public class TalismanParser {
 
         List<String> lore = getStringListSafe(t, "lore");
 
-        int count = getIntSafe(t, "count", 1);
         int damage = getIntSafe(t, "damage", -1);
 
         // FLAGS
@@ -122,7 +121,7 @@ public class TalismanParser {
 
         return new Talisman(
                 id, name, material, glow, unbreakable, lore,
-                attrs, nbt, color, count, damage, flags,
+                attrs, nbt, color, damage, flags,
                 effectSlots, effects, enchantments
         );
     }

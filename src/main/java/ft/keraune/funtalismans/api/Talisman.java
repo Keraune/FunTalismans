@@ -18,7 +18,6 @@ public class Talisman {
     private final Map<String, Object> nbt;
 
     private final String color;
-    private final int count;
     private final int damage;
     private final List<String> flags;
 
@@ -37,7 +36,6 @@ public class Talisman {
             List<TalismanAttribute> attributes,
             Map<String, Object> nbt,
             String color,
-            int count,
             int damage,
             List<String> flags,
             List<EquipmentSlot> effectSlots,
@@ -54,7 +52,6 @@ public class Talisman {
         this.nbt = Map.copyOf(nbt);
 
         this.color = color;
-        this.count = count;
         this.damage = damage;
         this.flags = List.copyOf(flags);
 
@@ -72,7 +69,6 @@ public class Talisman {
     public List<TalismanAttribute> getAttributes() { return attributes; }
     public Map<String, Object> getNbt() { return nbt; }
     public String getColor() { return color; }
-    public int getCount() { return count; }
     public int getDamage() { return damage; }
     public List<String> getFlags() { return flags; }
 

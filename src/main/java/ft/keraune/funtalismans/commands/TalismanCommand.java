@@ -23,7 +23,7 @@ public class TalismanCommand implements CommandExecutor {
         if (args.length == 0) {
             send(sender, plugin.getMessageManager().getMessage("usage_give_cmd"));
             send(sender, plugin.getMessageManager().getMessage("usage_reload"));
-            send(sender, "§e/talisman forceupdate §7- Forzar actualización de talismanes");
+            send(sender, plugin.getMessageManager().getMessage("usage_force_update"));
             return true;
         }
 
@@ -69,7 +69,7 @@ public class TalismanCommand implements CommandExecutor {
                 return true;
             }
 
-            if (args.length < 3) {
+            if (args.length < 3 || args.length > 4) {
                 send(sender, plugin.getMessageManager().getMessage("usage_give"));
                 return true;
             }
@@ -88,17 +88,45 @@ public class TalismanCommand implements CommandExecutor {
                 return true;
             }
 
-            ItemStack item = TalismanItemBuilder.build(t);
+            int amount = 1;
 
-            if (target.getInventory().firstEmpty() == -1) {
+            if (args.length == 4) {
+                try {
+                    amount = Integer.parseInt(args[3]);
+
+                    if (amount <= 0) {
+                        send(sender, plugin.getMessageManager()
+                                .getMessage("amount_must_be_positive"));
+                        return true;
+                    }
+
+                } catch (NumberFormatException e) {
+                    send(sender, plugin.getMessageManager()
+                            .getMessage("invalid_amount"));
+                    return true;
+                }
+            }
+
+            ItemStack item = TalismanItemBuilder.build(t);
+            item.setAmount(amount);
+
+            // Manejo seguro del inventario (stacks grandes)
+            var leftover = target.getInventory().addItem(item);
+            if (!leftover.isEmpty()) {
                 send(sender, plugin.getMessageManager().getMessage("inventory_full"));
                 return true;
             }
 
-            target.getInventory().addItem(item);
+            // Mensaje de éxito
+            send(sender, plugin.getMessageManager().getMessage(
+                    "give_success",
+                    Map.of(
+                            "talisman", id,
+                            "player", target.getName(),
+                            "amount", String.valueOf(amount)
+                    )
+            ));
 
-            send(sender, plugin.getMessageManager().getMessage("give_success",
-                    Map.of("talisman", id, "player", target.getName())));
             return true;
         }
 
@@ -111,7 +139,7 @@ public class TalismanCommand implements CommandExecutor {
                 return true;
             }
 
-            send(sender, "§aForzando actualización de todos los talismanes...");
+            send(sender, plugin.getMessageManager().getMessage("force_update_success"));
             plugin.getTalismanManager().forceUpdateAll();
 
             // Actualizar todo
@@ -122,7 +150,7 @@ public class TalismanCommand implements CommandExecutor {
 
             plugin.getTalismanManager().updateTalismanContainers();
 
-            send(sender, "§a¡Actualización forzada completada!");
+            send(sender, plugin.getMessageManager().getMessage("update_success"));
             return true;
         }
 

@@ -158,7 +158,7 @@ public class TextUtil {
 
                 case "reset" -> "§r";
 
-                default -> "";
+                default -> m.group(0);
             };
         });
     }

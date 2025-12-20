@@ -8,7 +8,7 @@ depend: [NBTAPI]
 commands:
   talisman:
     description: Talisman command
-    usage: /talisman
+    usage: /talisman <subcommand>
     aliases: [tali, talismans, ftalismans, ft]
 
 permissions:

@@ -29,7 +29,7 @@ public class TalismanItemBuilder {
         Material mat = Material.matchMaterial(t.getMaterial());
         if (mat == null) mat = Material.STICK;
 
-        ItemStack item = new ItemStack(mat, t.getCount());
+        ItemStack item = new ItemStack(mat, 1);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -141,7 +141,7 @@ public class TalismanItemBuilder {
             item.setItemMeta(meta);
         } catch (Exception e) {
             LOGGER.warning("Failed to set item meta for talisman '" + t.getId() + "': " + e.getMessage());
-            return new ItemStack(mat, t.getCount());
+            return new ItemStack(mat, 1);
         }
 
         // TEXTURA PARA CABEZAS - APLICAR DESPUÉS del meta básico

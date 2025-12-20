@@ -51,18 +51,25 @@ public class MessageManager {
 
     private Map<String, String> getDefaultMessages() {
         Map<String, String> defaults = new HashMap<>();
+
         defaults.put("no_permission", "&cYou don't have permission.");
         defaults.put("player_not_found", "&cPlayer not found.");
         defaults.put("talisman_not_found", "&cTalisman not found.");
         defaults.put("inventory_full", "&cThe player's inventory is full!");
-        defaults.put("reload_success", "&aAll configurations reloaded! &7(%ms%ms)");
-        defaults.put("give_success", "&aGiven talisman &e%talisman% &ato &b%player%");
         defaults.put("unknown_subcommand", "&cUnknown subcommand.");
-        defaults.put("usage_give", "&cUsage: /talisman give <player> <id>");
+        defaults.put("reload_success", "&aAll configurations reloaded! &7(%ms%ms)");
+        defaults.put("give_success", "&aGiven &e%amount% &atalisman(s) &e%talisman% &ato &b%player%");
+        defaults.put("usage_give", "&cUsage: /talisman give <player> <id> <amount>");
+        defaults.put("usage_give_cmd", "&e/talisman give <player> <id> <amount>");
+        defaults.put("invalid_amount", "&cInvalid amount.");
+        defaults.put("amount_must_be_positive", "&cAmount must be greater than 0.");
         defaults.put("usage_reload", "&e/talisman reload");
-        defaults.put("usage_give_cmd", "&e/talisman give <player> <id>");
+        defaults.put("usage_force_update", "&e/talisman forceupdate");
+        defaults.put("force_update_success", "&aForcing an update of all talismans...");
+        defaults.put("update_success", "&aForced update complete!");
         return defaults;
     }
+
 
     public String getMessage(String key) {
         String message = messages.getOrDefault(key, "&cMessage not found: " + key);

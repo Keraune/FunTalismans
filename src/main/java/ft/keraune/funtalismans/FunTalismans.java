@@ -12,6 +12,7 @@ import ft.keraune.funtalismans.manager.MessageManager;
 import ft.keraune.funtalismans.effects.EffectHandler;
 import ft.keraune.funtalismans.listeners.BlockPlaceListener;
 import ft.keraune.funtalismans.utils.TextUtil;
+import ft.keraune.funtalismans.utils.UpdateChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -55,6 +56,8 @@ public class FunTalismans extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockPlaceListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerQuitListener(this), this);
         getServer().getPluginManager().registerEvents(new TalismanUpdateListeners(this), this);
+
+        new UpdateChecker(this, "funtalismans").checkForUpdates();
 
         getLogger().info("FunTalismans enabled!");
     }

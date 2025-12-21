@@ -101,7 +101,8 @@ public class TextUtil {
         int len = content.length();
 
         for (int i = 0; i < len; i++) {
-            double progress = (double) i / (len - 1) * (colors.size() - 1);
+            // Validación para evitar división por cero si len es 1
+            double progress = (len > 1) ? (double) i / (len - 1) * (colors.size() - 1) : 0;
             int index = (int) progress;
             double ratio = progress - index;
 
@@ -113,11 +114,13 @@ public class TextUtil {
             int b = (int) (start[2] + (end[2] - start[2]) * ratio);
 
             String hex = String.format("%02X%02X%02X", r, g, b);
-            out.append(toHex(hex)).append(content.charAt(i));
+
+            out.append(toHex(hex)).append("§l").append(content.charAt(i));
         }
 
         return out.toString();
     }
+
 
     // ============================================================
     // TAGS <b>, </b>, <red>, <reset>

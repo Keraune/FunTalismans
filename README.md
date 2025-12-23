@@ -1,46 +1,90 @@
-# FunTalismans
+# ✨ FunTalismans ✨  
+### 🔮 Advanced Custom Talismans Plugin for Minecraft
 
-**FunTalismans** is a lightweight and fully customizable plugin that allows server owners to create unique talismans with effects, attributes, stats, and item properties.  
-All customization is done through clean and flexible **HOCON** configuration files.
+📥 **Spanish `talismans.conf` configuration download**  
+👉 https://www.mediafire.com/file/8o6x85b39ucz6ep/talismans.conf/file  
 
-# Features
+---
 
-**Highly Customizable Talismans**  
-Create talismans with effects, attributes, stats, NBT tags, custom names, glow, and more.
+## 📖 Overview
 
-**Perfect for:**  
-• RPG servers  
-• Survival progression  
-• Custom equipment systems  
-• Magic/Fantasy systems  
-• Servers with unique combat and stat mechanics  
+**FunTalismans** is a **lightweight, powerful, and highly customizable** Minecraft plugin that allows server owners to create **unique talismans** with special effects, attributes, stats, and advanced item properties.
 
-**Smart Reload System**  
-FunTalismans includes a built-in reload system that applies configuration changes instantly.  
+All customization is handled through clean, readable, and flexible **HOCON configuration files**, making it easy to design complex systems without touching code.
+
+Perfect for servers that want **deep progression**, **custom equipment**, or **RPG-style mechanics**.
+
+---
+
+## 🚀 Features
+
+### 🧿 Highly Customizable Talismans
+Create talismans with full control over:
+
+- ✨ Potion effects  
+- ⚔️ Custom attributes  
+- 📊 Advanced statistics  
+- 🧬 NBT tags  
+- 🏷️ Custom names (colors, gradients, styles)  
+- 🌟 Visual glow  
+- 🛡️ Item properties (unbreakable, slots, etc.)  
+
+---
+
+### 🎯 Ideal For
+
+✔ RPG servers  
+✔ Survival progression systems  
+✔ Custom equipment setups  
+✔ Magic / Fantasy gameplay  
+✔ Servers with unique combat & stat mechanics  
+
+---
+
+## ♻️ Smart Reload System
+
+FunTalismans includes a **real-time reload system** that applies configuration changes instantly.
+
 When running the reload command, the plugin automatically:
 
-• Rebuilds all talismans from the updated configuration  
-• Updates talismans already in players' inventories  
-• Applies new effects, attributes, names, textures, NBT, and statistics in real time  
-• Requires no server restart
+- 🔄 Rebuilds all talismans from the updated configuration  
+- 🎒 Updates talismans already present in player inventories  
+- ⚡ Applies new effects, attributes, names, textures, NBT, and stats live  
+- 🚫 Requires **no server restart**
 
-# Commands
+This allows fast iteration and balancing without interrupting gameplay.
 
-**/talisman reload**  
-Reloads all plugin configurations and updates all existing talismans.  
-Permission: `funtalismans.reload`
+---
 
-**/talisman give <player> <talisman-id>**  
-Gives a specific talisman to a player.  
-Permission: `funtalismans.give`
+## 🧾 Commands
 
-Example:  
+### 🔄 `/talisman reload`
+Reloads all plugin configurations and updates every existing talisman.
 
-# Requirements
+**Permission:**  
+```
+funtalismans.reload
+```
 
-• NBTAPI
+---
 
-# Example Talismans (HOCON)
+### 🎁 `/talisman give <player> <talisman-id> <amount>`
+Gives a specific talisman to a player.
+
+**Permission:**  
+```
+funtalismans.give
+```
+
+---
+
+## 📦 Requirements
+
+- ✅ **NBTAPI**
+
+---
+
+## 🧪 Example Talisman Configuration (HOCON)
 
 ```hocon
 talismans {
@@ -91,3 +135,20 @@ talismans {
     }
   }
 }
+```
+
+---
+
+## 🛠️ Notes
+
+- Designed for performance and scalability  
+- Fully compatible with custom systems  
+- Easy to maintain and extend  
+- Ideal foundation for advanced RPG plugins  
+
+---
+
+**FunTalismans** gives you full control over how talismans behave, look, and evolve —  
+all without restarting your server.
+
+---

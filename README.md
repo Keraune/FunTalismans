@@ -96,7 +96,7 @@ funtalismans.give
 
 ## Example Talisman Configuration (HOCON)
 
-```json
+```hocon
 ###########################################################################################
 #                                                                                         #
 #                    TALISMANS CONFIGURATION GUIDE                                        #

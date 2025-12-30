@@ -211,7 +211,7 @@ talismans {
     name: "&x&f&b&0&0&0&0[★] <#ff6300>ᴀɴᴅʀᴏᴍᴇᴅᴀ ꜱᴘʜᴇʀᴇ"
     material: "player_head"
     texture: "http://textures.minecraft.net/texture/44ffe3f358f209bad8fff4dc48245d9baf0a031b3c1ee6b758460a339b1519e2"
-    unbreakable: falsei
+    unbreakable: false
     glow: false
     lore: [
       "&7ᴛʜᴇ ꜱᴘʜᴇʀᴇ ɢᴜᴀʀᴅꜱ ᴛʜᴇ ɢᴀᴢᴇ",

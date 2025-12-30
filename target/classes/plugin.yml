@@ -1,5 +1,5 @@
 name: FunTalismans
-version: '1.0.1'
+version: '1.1.0'
 main: ft.keraune.funtalismans.FunTalismans
 api-version: '1.21'
 author: Keraune

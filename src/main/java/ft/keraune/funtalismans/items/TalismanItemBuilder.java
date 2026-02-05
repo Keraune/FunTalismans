@@ -1,6 +1,5 @@
 package ft.keraune.funtalismans.items;
 
-import de.tr7zw.nbtapi.NBTItem;
 import ft.keraune.funtalismans.FunTalismans;
 import ft.keraune.funtalismans.api.Talisman;
 import ft.keraune.funtalismans.api.TalismanAttribute;
@@ -8,8 +7,11 @@ import ft.keraune.funtalismans.api.TalismanEnchantment;
 import ft.keraune.funtalismans.api.TalismanRarity;
 import ft.keraune.funtalismans.manager.RarityManager;
 import ft.keraune.funtalismans.utils.TextUtil;
-import org.bukkit.Bukkit;
+// IMPORTS NATIVOS DE PAPER (1.21.4+)
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.CustomModelData;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
@@ -17,13 +19,18 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.UUID;
 import java.util.logging.Logger;
 
 public class TalismanItemBuilder {
 
-    private static final Logger LOGGER = Bukkit.getLogger();
+    // Logger seguro desde la instancia principal
+    private static Logger getLogger() {
+        return FunTalismans.getInstance().getLogger();
+    }
 
     public static ItemStack build(Talisman t) {
         Material mat = Material.matchMaterial(t.getMaterial());
@@ -33,84 +40,92 @@ public class TalismanItemBuilder {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        // APLICAR PROPIEDADES BÁSICAS PRIMERO
+        // 1. PROPIEDADES BÁSICAS
         meta.setDisplayName(TextUtil.color(t.getName()));
         meta.setLore(t.getLore().stream().map(TextUtil::color).toList());
         meta.setUnbreakable(t.isUnbreakable());
 
-        // APLICAR COLOR DE RAREZA AL NOMBRE
+        // 2. CUSTOM MODEL DATA (Enteros)
+        // La parte de Strings la aplicamos al final usando DataComponents
+        Object cmd = t.getCustomModelData();
+        if (cmd instanceof Integer i) {
+            try {
+                meta.setCustomModelData(i);
+            } catch (Throwable ignored) {}
+        }
+
+        // 3. RAREZA
         TalismanRarity rarity = getRarity(t);
         if (rarity != null) {
             String coloredName = rarity.color() + t.getName();
             meta.setDisplayName(TextUtil.color(coloredName));
         }
 
-        // COLOR UNIVERSAL
+        // 4. COLOR
         if (t.getColor() != null) {
             try {
                 meta = ColorApplier.apply(meta, t.getColor());
             } catch (Exception e) {
-                LOGGER.warning("Failed to apply color for talisman '" + t.getId() + "': " + e.getMessage());
+                getLogger().warning("Failed to apply color for talisman '" + t.getId() + "': " + e.getMessage());
             }
         } else if (t.getNbt().containsKey("color")) {
             try {
                 meta = ColorApplier.apply(meta, t.getNbt().get("color").toString());
             } catch (Exception e) {
-                LOGGER.warning("Failed to apply color from NBT for talisman '" + t.getId() + "': " + e.getMessage());
+                getLogger().warning("Failed to apply color from NBT for talisman '" + t.getId() + "': " + e.getMessage());
             }
         }
 
-        // DAMAGE
+        // 5. DAÑO
         if (t.getDamage() >= 0 && meta instanceof Damageable dm) {
             try {
                 dm.setDamage(t.getDamage());
                 meta = dm;
             } catch (Exception e) {
-                LOGGER.warning("Failed to set damage for talisman '" + t.getId() + "': " + e.getMessage());
+                getLogger().warning("Failed to set damage for talisman '" + t.getId() + "': " + e.getMessage());
             }
         }
 
-        // FLAGS
+        // 6. FLAGS
         for (String flagName : t.getFlags()) {
             try {
                 meta.addItemFlags(ItemFlag.valueOf(flagName.toUpperCase()));
             } catch (Exception e) {
-                LOGGER.warning("Invalid item flag '" + flagName + "' for talisman '" + t.getId() + "'");
+                getLogger().warning("Invalid item flag '" + flagName + "' for talisman '" + t.getId() + "'");
             }
         }
 
-        // ENCHANTMENTS
+        // 7. ENCANTAMIENTOS
         for (TalismanEnchantment enchant : t.getEnchantments()) {
             if (enchant.getEnchantment() != null) {
                 try {
                     meta.addEnchant(enchant.getEnchantment(), enchant.getLevel(), true);
                 } catch (Exception e) {
-                    LOGGER.warning("Failed to apply enchantment " + enchant.getEnchantment() +
+                    getLogger().warning("Failed to apply enchantment " + enchant.getEnchantment() +
                             " for talisman '" + t.getId() + "': " + e.getMessage());
                 }
             }
         }
 
-        // GLOW (controlado individualmente por cada talismán)
+        // 8. GLOW
         if (t.isGlow()) {
             try {
                 applyGlow(meta);
             } catch (Exception e) {
-                LOGGER.warning("Failed to apply glow for talisman '" + t.getId() + "': " + e.getMessage());
+                getLogger().warning("Failed to apply glow for talisman '" + t.getId() + "': " + e.getMessage());
             }
         }
 
-        // ATRIBUTOS (con UUID determinístico)
+        // 9. ATRIBUTOS
         for (TalismanAttribute attr : t.getAttributes()) {
             if (attr.getType() != null && attr.getSlot() != null) {
                 try {
-                    // UUID determinístico basado en el ID del talismán y el atributo
                     UUID deterministicUUID = UUID.nameUUIDFromBytes(
                             (t.getId() + ":" + attr.getType().getKey().getKey() + ":" + attr.getSlot().name()).getBytes()
                     );
 
                     AttributeModifier modifier = new AttributeModifier(
-                            deterministicUUID, // UUID determinístico en lugar de random
+                            deterministicUUID,
                             t.getId(),
                             attr.getAmount(),
                             attr.getOperation(),
@@ -118,71 +133,85 @@ public class TalismanItemBuilder {
                     );
                     meta.addAttributeModifier(attr.getType(), modifier);
                 } catch (Exception e) {
-                    LOGGER.warning("Failed to apply attribute " + attr.getType() +
+                    getLogger().warning("Failed to apply attribute " + attr.getType() +
                             " for talisman '" + t.getId() + "': " + e.getMessage());
                 }
             }
         }
 
-        // PERSISTENT DATA CONTAINER
-        try {
-            var cfg = FunTalismans.getInstance().getConfigManager();
-            meta.getPersistentDataContainer().set(
-                    cfg.talismansKey(),
-                    cfg.stringType(),
-                    t.getId()
-            );
-        } catch (Throwable e) {
-            LOGGER.warning("Failed to set PDC for talisman '" + t.getId() + "': " + e.getMessage());
-        }
-
-        // APLICAR META PRIMERO
-        try {
-            item.setItemMeta(meta);
-        } catch (Exception e) {
-            LOGGER.warning("Failed to set item meta for talisman '" + t.getId() + "': " + e.getMessage());
-            return new ItemStack(mat, 1);
-        }
-
-        // TEXTURA PARA CABEZAS - APLICAR DESPUÉS del meta básico
-        if (item.getItemMeta() instanceof SkullMeta skullMeta && t.getNbt().containsKey("texture")) {
+        // 10. TEXTURAS (CABEZAS)
+        // Nota: Asumimos que SkullUtil maneja la textura internamente
+        if (meta instanceof SkullMeta skullMeta && t.getNbt().containsKey("texture")) {
             try {
                 String texture = t.getNbt().get("texture").toString();
                 skullMeta = SkullUtil.applyTexture(skullMeta, texture);
-                item.setItemMeta(skullMeta);
+                meta = skullMeta; // Importante actualizar referencia
             } catch (Exception e) {
-                LOGGER.warning("Failed to apply custom texture for talisman '" + t.getId() + "': " + e.getMessage());
+                getLogger().warning("Failed to apply custom texture for talisman '" + t.getId() + "': " + e.getMessage());
             }
         }
 
-        // NBT EXTRA — sin sobrescribir ni duplicar IDs internos
-        try {
-            NBTItem nbt = new NBTItem(item, true);
+        // 11. DATOS PERSISTENTES (Reemplazo Nativo de NBT)
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        var cfg = FunTalismans.getInstance().getConfigManager();
 
-            // ID usado si el CONF tiene "id"
-            if (t.getNbt().containsKey("id")) {
-                String citId = t.getNbt().get("id").toString();
-                nbt.setString("talisman_id", citId);  // Grabar SOLO en raíz
+        // ID Principal
+        pdc.set(cfg.talismansKey(), cfg.stringType(), t.getId());
+
+        // ID Extra (compatibilidad)
+        if (t.getNbt().containsKey("id")) {
+            String citId = t.getNbt().get("id").toString();
+            NamespacedKey citKey = new NamespacedKey(FunTalismans.getInstance(), "talisman_id");
+            pdc.set(citKey, PersistentDataType.STRING, citId);
+        }
+
+        // Otros datos extra definidos en la config (convertidos a PDC)
+        t.getNbt().forEach((key, value) -> {
+            if (key.equalsIgnoreCase("id") ||
+                    key.equalsIgnoreCase("texture") ||
+                    key.equalsIgnoreCase("rarity") ||
+                    key.equalsIgnoreCase("color")) {
+                return;
             }
 
-            // Aplicar NBT extra sin sobrescribir los internos
-            t.getNbt().forEach((key, value) -> {
-                if (key.equalsIgnoreCase("id") ||
-                        key.equalsIgnoreCase("talisman_id") ||
-                        key.equalsIgnoreCase("publicbukkitvalues")) {
-                    return;
+            try {
+                // Creamos una key para el dato extra
+                NamespacedKey extraKey = new NamespacedKey(FunTalismans.getInstance(), key.toLowerCase());
+
+                // Detectamos tipo básico para guardarlo correctamente
+                if (value instanceof String s) {
+                    pdc.set(extraKey, PersistentDataType.STRING, s);
+                } else if (value instanceof Integer i) {
+                    pdc.set(extraKey, PersistentDataType.INTEGER, i);
+                } else if (value instanceof Double d) {
+                    pdc.set(extraKey, PersistentDataType.DOUBLE, d);
+                } else if (value instanceof Boolean b) {
+                    // PDC no tiene Boolean nativo, usamos Byte 0/1
+                    pdc.set(extraKey, PersistentDataType.BYTE, (byte) (b ? 1 : 0));
                 }
+            } catch (Exception ignored) {}
+        });
 
-                try {
-                    nbt.setObject(key, value);
-                } catch (Exception ignored) {}
-            });
+        // APLICAR META FINAL
+        item.setItemMeta(meta);
 
-            return nbt.getItem();
-
-        } catch (Throwable e) {
-            return item;
+        // ========================================================================
+        // 12. CUSTOM MODEL DATA STRING (API NATIVA DE PAPER)
+        // ========================================================================
+        if (cmd instanceof String s) {
+            try {
+                // Usamos la API de DataComponents de Paper (1.20.5+)
+                // Esto inyecta el valor directamente en el componente minecraft:custom_model_data
+                item.setData(DataComponentTypes.CUSTOM_MODEL_DATA,
+                        CustomModelData.customModelData().addString(s).build()
+                );
+            } catch (Throwable e) {
+                // Si esto falla, probablemente el servidor no es Paper o es una versión antigua
+                getLogger().warning("Failed to apply String CustomModelData (Require Paper 1.21.4+): " + e.getMessage());
+            }
         }
+
+        return item;
     }
 
     private static TalismanRarity getRarity(Talisman t) {
@@ -211,7 +240,7 @@ public class TalismanItemBuilder {
             meta.addEnchant(Enchantment.LUCK_OF_THE_SEA, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } catch (Throwable e) {
-            LOGGER.warning("Failed to apply glow fallback: " + e.getMessage());
+            getLogger().warning("Failed to apply glow fallback: " + e.getMessage());
         }
     }
 

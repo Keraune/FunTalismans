@@ -22,6 +22,23 @@ public class TalismanParser {
         boolean glow = getBooleanSafe(t, "glow", false);
         boolean unbreakable = getBooleanSafe(t, "unbreakable", false);
 
+        // --- CUSTOM MODEL DATA PARSING ---
+        Object customModelData = null;
+        if (t.hasPath("custom_model_data")) {
+            Object rawValue = t.getAnyRef("custom_model_data");
+            if (rawValue instanceof Number) {
+                customModelData = ((Number) rawValue).intValue();
+            } else {
+                String strVal = rawValue.toString();
+                try {
+                    customModelData = Integer.parseInt(strVal);
+                } catch (NumberFormatException e) {
+                    customModelData = strVal; // Es un String tipo "tali"
+                }
+            }
+        }
+        // -----------------------------------------------
+
         List<String> lore = getStringListSafe(t, "lore");
 
         int damage = getIntSafe(t, "damage", -1);
@@ -122,7 +139,7 @@ public class TalismanParser {
         return new Talisman(
                 id, name, material, glow, unbreakable, lore,
                 attrs, nbt, color, damage, flags,
-                effectSlots, effects, enchantments
+                effectSlots, effects, enchantments, customModelData
         );
     }
 

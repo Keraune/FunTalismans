@@ -14,6 +14,8 @@ public class Talisman {
     private final boolean unbreakable;
     private final List<String> lore;
 
+    private final Object customModelData;
+
     private final List<TalismanAttribute> attributes;
     private final Map<String, Object> nbt;
 
@@ -40,7 +42,8 @@ public class Talisman {
             List<String> flags,
             List<EquipmentSlot> effectSlots,
             List<TalismanEffect> effects,
-            List<TalismanEnchantment> enchantments
+            List<TalismanEnchantment> enchantments,
+            Object customModelData
     ) {
         this.id = id;
         this.name = name;
@@ -57,7 +60,8 @@ public class Talisman {
 
         this.effectSlots = List.copyOf(effectSlots);
         this.effects = List.copyOf(effects);
-        this.enchantments = List.copyOf(enchantments); // ← NUEVO
+        this.enchantments = List.copyOf(enchantments);
+        this.customModelData = customModelData;
     }
 
     public String getId() { return id; }
@@ -74,7 +78,9 @@ public class Talisman {
 
     public List<EquipmentSlot> getEffectSlots() { return effectSlots; }
     public List<TalismanEffect> getEffects() { return effects; }
-    public List<TalismanEnchantment> getEnchantments() { return enchantments; } // ← NUEVO
+    public List<TalismanEnchantment> getEnchantments() { return enchantments; }
+
+    public Object getCustomModelData() { return customModelData; }
 
     public boolean hasEffect(org.bukkit.potion.PotionEffectType type) {
         for (TalismanEffect eff : effects) {

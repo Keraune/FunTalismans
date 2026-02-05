@@ -4,6 +4,8 @@ import ft.keraune.funtalismans.FunTalismans;
 import ft.keraune.funtalismans.api.Talisman;
 import ft.keraune.funtalismans.items.TalismanItemBuilder;
 import ft.keraune.funtalismans.items.SkullUtil;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.CustomModelData;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
@@ -269,6 +271,32 @@ public class TalismanManager {
         if (item.getType() != expectedItem.getType()) {
             return true;
         }
+
+        // --- CUSTOM MODEL DATA CHECK (NATIVO PAPER) ---
+        Object expectedCMD = talisman.getCustomModelData();
+
+        if (expectedCMD instanceof Integer i) {
+            // Caso Entero: Usamos la API estándar de Meta
+            if (!meta.hasCustomModelData() || meta.getCustomModelData() != i) return true;
+        }
+        else if (expectedCMD instanceof String s) {
+            // Caso String: Usamos la API de Componentes de Paper
+            if (!item.hasData(DataComponentTypes.CUSTOM_MODEL_DATA)) {
+                return true; // No tiene componente, debe actualizarse
+            }
+
+            CustomModelData currentCmdData = item.getData(DataComponentTypes.CUSTOM_MODEL_DATA);
+            // Verificamos si la lista de strings contiene el valor esperado
+            if (currentCmdData == null || currentCmdData.strings() == null || !currentCmdData.strings().contains(s)) {
+                return true;
+            }
+        }
+        else if (expectedCMD == null) {
+            // Si no esperamos nada, pero el item tiene data (Integer o Componente), actualizar para limpiar
+            if (meta.hasCustomModelData()) return true;
+            if (item.hasData(DataComponentTypes.CUSTOM_MODEL_DATA)) return true;
+        }
+        // -----------------------------------------------
 
         // Para custom heads, verificar también el display name
         if (expectedItem.hasItemMeta() && expectedItem.getItemMeta().hasDisplayName()) {
